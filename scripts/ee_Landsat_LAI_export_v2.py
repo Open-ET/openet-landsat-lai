@@ -68,13 +68,13 @@ def getVIs(img):
     SR = img.expression('float(b("nir")) / b("red")')
     NDVI = img.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
     EVI = img.expression('2.5 * float((b("nir") - b("red"))) / (b("nir") + 6*b("red") - 7.5*float(b("blue")) + 10000)')
-    # GCI = img.expression('float(b("nir")) / b("green") - 1');
-    # EVI2 = img.expression('2.5 * float((b("nir") - b("red"))) / (b("nir") + 2.4*float(b("red")) + 10000)');
-    # OSAVI = img.expression('1.16 * float(b("nir") - b("red")) / (b("nir") + b("red") + 1600)');
+    # GCI = img.expression('float(b("nir")) / b("green") - 1')
+    # EVI2 = img.expression('2.5 * float((b("nir") - b("red"))) / (b("nir") + 2.4*float(b("red")) + 10000)')
+    # OSAVI = img.expression('1.16 * float(b("nir") - b("red")) / (b("nir") + b("red") + 1600)')
     NDWI = img.expression('float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
-    # NDWI2 = img.expression('float((b("nir") - b("swir2"))) / (b("nir") + b("swir2"))');
-    # MSR = img.expression('float(b("nir")) / b("swir1")');
-    # MTVI2 = img.expression('1.5*(1.2*float(b("nir") - b("green")) - 2.5*float(b("red") - b("green")))/sqrt((2*b("nir")+10000)*(2*b("nir")+10000) - (6*b("nir") - 5*sqrt(float(b("nir"))))-5000)');
+    # NDWI2 = img.expression('float((b("nir") - b("swir2"))) / (b("nir") + b("swir2"))')
+    # MSR = img.expression('float(b("nir")) / b("swir1")')
+    # MTVI2 = img.expression('1.5*(1.2*float(b("nir") - b("green")) - 2.5*float(b("red") - b("green")))/sqrt((2*b("nir")+10000)*(2*b("nir")+10000) - (6*b("nir") - 5*sqrt(float(b("nir"))))-5000)')
     
     return img.addBands(SR.select([0], ['SR'])) \
               .addBands(NDVI.select([0],['NDVI'])) \
@@ -85,7 +85,7 @@ def getVIs(img):
               # .addBands(OSAVI.select([0],['OSAVI']))
               # .addBands(NDWI2.select([0],['NDWI2']))
               # .addBands(MSR.select([0],['MSR']))
-              # .addBands(MTVI2.select([0],['MTVI2']));
+              # .addBands(MTVI2.select([0],['MTVI2']))
 
 def trainRF(samples, features, classProperty):
     """
@@ -154,23 +154,25 @@ def getTrainImg(image):
         '2006':2,'2007':2,'2008':3,'2009':3,'2010':4,'2011':4,'2012':4,'2013':5,'2014':5,
         '2015':6,'2016':6,'2017':6,'2018':6,'2019':6}
     nlcd_dict = ee.Dictionary(nlcd_dict)
-        
-    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year))]); # get NLCD for corresponding year
+
+    # CGM - This nlcd image is not being used after this, should it be?
+    # Get NLCD for corresponding year
+    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year))])
         
     # add bands
-    image = maskLST(image);
-    image = getVIs(image);
-    mask_prev = image.select([0]).mask();
+    image = maskLST(image)
+    image = getVIs(image)
+    mask_prev = image.select([0]).mask()
 
     # add other bands
     image = image.addBands(nlcd2011.select([0],['nlcd']).clip(image.geometry()))
     image = image.addBands(ee.Image.pixelLonLat().select(['longitude','latitude'],['lon','lat']).clip(image.geometry()))
-    # image = image.addBands(ee.Image.constant(ft.get('year')).select([0],['year']).clip(image.geometry()));
+    # image = image.addBands(ee.Image.constant(ft.get('year')).select([0],['year']).clip(image.geometry()))
     image = image.addBands(ee.Image.constant(ee.Number(image.get('WRS_PATH'))).select([0],['path'])).clip(image.geometry())
     image = image.addBands(ee.Image.constant(ee.Number(image.get('WRS_ROW'))).select([0],['row'])).clip(image.geometry())
     image = image.addBands(ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE'))).select([0],['sun_zenith'])).clip(image.geometry())
     image = image.addBands(ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE'))).select([0],['sun_azimuth'])).clip(image.geometry())
-    # image = image.addBands(ee.Image.constant(ee.Number(ft.get('doy'))).select([0],['DOY'])).clip(image.geometry());
+    # image = image.addBands(ee.Image.constant(ee.Number(ft.get('doy'))).select([0],['DOY'])).clip(image.geometry())
 
     # add biome band
     fromList = [21,22,23,24,31,41,42,43,52,71,81,82,90,95]

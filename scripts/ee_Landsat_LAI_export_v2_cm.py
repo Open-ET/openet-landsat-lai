@@ -12,10 +12,103 @@ import sys
 
 import ee
 
-# ee.Initialize()
-gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
-ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
-              use_cloud_api=True)
+
+def main(overwrite_flag=False, gee_key_file=None):
+    """Export Landsat LAI images
+
+    Parameters
+    ----------
+    overwrite_flag : bool, optional
+        If True, overwrite existing files (the default is False).
+    gee_key_file : str, None, optional
+        Earth Engine service account JSON key file (the default is None).
+    start_dt : datetime, optional
+        Override the start date in the INI file
+        (the default is None which will use the INI start date).
+    end_dt : datetime, optional
+        Override the (inclusive) end date in the INI file
+        (the default is None which will use the INI end date).
+
+    Returns
+    -------
+    None
+
+    """
+    logging.info('\nExport Landsat LAI images')
+
+    # Hard code input parameters for now
+    path = 44
+    row = 33
+    version = 'v2'
+    pathrow = '{:03d}{:03d}'.format(int(path), int(row))
+    assetDir = 'projects/openet/lai/landsat/v2/'
+    # start = '2017-07-01'
+    # end = '2017-08-01'
+    # gee_key_file = None
+    start = '2017-01-01'
+    end = '2018-01-01'
+    gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+
+    logging.info('\nInitializing Earth Engine')
+    if gee_key_file:
+        logging.info('  Using service account key file: {}'.format(gee_key_file))
+        # The "EE_ACCOUNT"  doesn't seem to be used if the key file is valid
+        ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
+                      use_cloud_api=True)
+    else:
+        ee.Initialize(use_cloud_api=True)
+
+    # Get Landsat collection
+    landsat_coll = getLandsat(start, end, path, row)
+    landsat_coll = landsat_coll.sort('system:time_start')
+
+    n = landsat_coll.size().getInfo()
+    print(n)
+    # print(laiColl.limit(10).getInfo())
+    sys.stdout.flush()
+
+    # print(laiColl.limit(10).getInfo())
+
+    for i in range(n):
+        landsat_image = ee.Image(landsat_coll.toList(5000).get(i))
+        # print(landsat_image.getInfo())
+
+        eedate = ee.Date(landsat_image.get('system:time_start'))
+        date = eedate.format('YYYYMMdd').getInfo()
+
+        sensor_dict = {'LANDSAT_5':'LT05', 'LANDSAT_7':'LE07', 'LANDSAT_8':'LC08'}
+        sensor = landsat_image.get('SATELLITE').getInfo()
+        sensor = sensor_dict[sensor]
+        outname = '{}_{}_{}'.format(sensor, pathrow, date)
+        logging.info(outname)
+
+        proj = landsat_image.select([0]).projection().getInfo()
+
+        laiImage = getLAIImage(landsat_image, sensor, nonveg=1)
+
+        asset_id = assetDir + outname.lower()
+        logging.debug('  {}'.format(asset_id))
+
+        if ee.data.getInfo(asset_id):
+            if overwrite_flag:
+                print('  asset already exists - overwriting')
+                ee.data.deleteAsset(asset_id)
+            else:
+                print('  asset already exists - skipping')
+                continue
+
+        task = ee.batch.Export.image.toAsset(
+            image=laiImage,
+            description=outname + '_LAI_{}'.format(version),
+            assetId=asset_id,
+            crs=proj['crs'],
+            crsTransform=str(proj['transform']),
+        )
+
+        task.start()  # submit task
+        logging.debug('  {}'.format(task.id))
+
+        sys.stdout.flush()
 
 
 def renameLandsat(image):
@@ -324,104 +417,6 @@ def getLAIColl_all(start, end, path, row):
     # print(lai_coll.limit(10))
   
     return lai_coll
-
-
-def main(overwrite_flag=False, gee_key_file=None):
-    """Export Landsat LAI images
-
-    Parameters
-    ----------
-    overwrite_flag : bool, optional
-        If True, overwrite existing files (the default is False).
-    gee_key_file : str, None, optional
-        Earth Engine service account JSON key file (the default is None).
-    start_dt : datetime, optional
-        Override the start date in the INI file
-        (the default is None which will use the INI start date).
-    end_dt : datetime, optional
-        Override the (inclusive) end date in the INI file
-        (the default is None which will use the INI end date).
-
-    Returns
-    -------
-    None
-
-    """
-    logging.info('\nExport Landsat LAI images')
-
-    # Hard code input parameters for now
-    path = 44
-    row = 33
-    version = 'v2'
-    pathrow = '{:03d}{:03d}'.format(int(path), int(row))
-    assetDir = 'projects/openet/lai/landsat/v2/'
-    # start = '2017-07-01'
-    # end = '2017-08-01'
-    # gee_key_file = None
-    start = '2017-01-01'
-    end = '2018-01-01'
-    gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
-
-    logging.info('\nInitializing Earth Engine')
-    if gee_key_file:
-        logging.info('  Using service account key file: {}'.format(gee_key_file))
-        # The "EE_ACCOUNT"  doesn't seem to be used if the key file is valid
-        ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
-                      use_cloud_api=True)
-    else:
-        ee.Initialize(use_cloud_api=True)
-
-    # Get Landsat collection
-    landsat_coll = getLandsat(start, end, path, row)
-    landsat_coll = landsat_coll.sort('system:time_start')
-
-    n = landsat_coll.size().getInfo()
-    print(n)
-    # print(laiColl.limit(10).getInfo())
-    sys.stdout.flush()
-
-    # print(laiColl.limit(10).getInfo())
-
-    for i in range(n):
-        landsat_image = ee.Image(landsat_coll.toList(5000).get(i))
-        # print(landsat_image.getInfo())
-
-        eedate = ee.Date(landsat_image.get('system:time_start'))
-        date = eedate.format('YYYYMMdd').getInfo()
-
-        sensor_dict = {'LANDSAT_5':'LT05', 'LANDSAT_7':'LE07', 'LANDSAT_8':'LC08'}
-        sensor = landsat_image.get('SATELLITE').getInfo()
-        sensor = sensor_dict[sensor]
-        outname = '{}_{}_{}'.format(sensor, pathrow, date)
-        logging.info(outname)
-
-        proj = landsat_image.select([0]).projection().getInfo()
-
-        laiImage = getLAIImage(landsat_image, sensor, nonveg=1)
-
-        asset_id = assetDir + outname.lower()
-        logging.debug('  {}'.format(asset_id))
-
-        if ee.data.getInfo(asset_id):
-            if overwrite_flag:
-                print('  asset already exists - overwriting')
-                ee.data.deleteAsset(asset_id)
-            else:
-                print('  asset already exists - skipping')
-                continue
-
-        task = ee.batch.Export.image.toAsset(
-            image=laiImage,
-            description=outname + '_LAI_{}'.format(version),
-            assetId=asset_id,
-            crs=proj['crs'],
-            crsTransform=str(proj['transform']),
-        )
-
-        task.start()  # submit task
-        logging.debug('  {}'.format(task.id))
-        
-        sys.stdout.flush()
 
 
 def arg_valid_file(file_path):

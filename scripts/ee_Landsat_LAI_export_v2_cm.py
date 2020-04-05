@@ -5,8 +5,15 @@ CGM
 This is a very slightly modified version of the v2 script that I am using for
 generating test assets.  I have not modified any of the actual LAI calculation.
 """
-import ee; ee.Initialize()
 import sys
+
+import ee
+
+ee.Initialize()
+# gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+# ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
+#               use_cloud_api=True)
+
 
 def renameLandsat(image):
     """
@@ -338,8 +345,8 @@ def main(argv):
     version = 'v2'
     pathrow = '{:03d}{:03d}'.format(int(path), int(row))
     assetDir = 'users/cgmorton/lai/landsat/v2/'
-    start = '2017-07-01'
-    end = '2017-08-01'
+    start = '2017-01-01'
+    end = '2018-01-01'
 
 
     # Get Landsat collection
@@ -366,36 +373,28 @@ def main(argv):
         sensor = sensor_dict[sensor]
 
         proj = landsat_image.select([0]).projection().getInfo()
-        crs = proj['crs']
-        # transform = ee.Projection(landsat_image.select([0]).projection()).transform().getInfo()
-        transform = proj['transform']
-        scale = ee.Projection(landsat_image.select([0]).projection()).nominalScale().getInfo()
-        print(date, crs, scale, str(transform))
 
-        nonveg = 1
-        laiImage = getLAIImage(landsat_image, sensor, nonveg)
-
-        import pprint
-        # pprint.pprint(laiImage.getInfo())
-        # input('ENTER')
-        
-        # date = laiImage.get('date')
-        # outname = 'LAI_' + date.getInfo()
-        # print(outname)
+        laiImage = getLAIImage(landsat_image, sensor, nonveg=1)
 
         outname = '{}_{}_{}'.format(sensor, pathrow, date)
-        # outname = 'LAI_' + pathrow + '_' + date + '_' + sensor + '_v' + str(version)
+        print(outname)
 
-        task = ee.batch.Export.image.toAsset(image = laiImage,
-                                             description = outname + '_LAI_{}'.format(version),
-                                             assetId = assetDir + outname.lower(),
-                                             # region = subset.getInfo()['corrdinates'],
-                                             crs = crs,
-                                             crsTransform = str(transform))
+        asset_id = assetDir + outname.lower()
+        if ee.data.getInfo(asset_id):
+            print('  asset already exists - skipping')
+            continue
+
+        task = ee.batch.Export.image.toAsset(
+            image=laiImage,
+            description=outname + '_LAI_{}'.format(version),
+            assetId=asset_id,
+            crs=proj['crs'],
+            crsTransform=str(proj['transform']),
+        )
 
         task.start()  # submit task
         task_id = task.id
-        print(task_id, outname)
+        print('  {}'.format(task_id))
         
         sys.stdout.flush()
 

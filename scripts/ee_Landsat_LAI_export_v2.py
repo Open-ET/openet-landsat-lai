@@ -165,7 +165,7 @@ def getTrainImg(image):
     mask_prev = image.select([0]).mask()
 
     # add other bands
-    image = image.addBands(nlcd2011.select([0],['nlcd']).clip(image.geometry()))
+    image = image.addBands(nlcd.select([0],['nlcd']).clip(image.geometry()))
     image = image.addBands(ee.Image.pixelLonLat().select(['longitude','latitude'],['lon','lat']).clip(image.geometry()))
     # image = image.addBands(ee.Image.constant(ft.get('year')).select([0],['year']).clip(image.geometry()))
     image = image.addBands(ee.Image.constant(ee.Number(image.get('WRS_PATH'))).select([0],['path'])).clip(image.geometry())

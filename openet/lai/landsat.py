@@ -145,7 +145,7 @@ def getTrainImg(image):
     Function that takes an Landsat image and prepare feature bands
     """
 
-    nlcd2011 = ee.Image('USGS/NLCD/NLCD2011')
+    # nlcd2011 = ee.Image('USGS/NLCD/NLCD2011')
 
     # NLCD processing
     year = ee.Date(image.get('system:time_start')).get('year')
@@ -170,7 +170,7 @@ def getTrainImg(image):
 
     # CGM - This nlcd image is not being used after this, should it be?
     # Get NLCD for corresponding year
-    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year))])
+    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
 
     # add bands
     image = maskLST(image)

@@ -157,7 +157,7 @@ def getTrainImg(image):
 
     # CGM - This nlcd image is not being used after this, should it be?
     # Get NLCD for corresponding year
-    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year))])
+    nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
         
     # add bands
     image = maskLST(image)

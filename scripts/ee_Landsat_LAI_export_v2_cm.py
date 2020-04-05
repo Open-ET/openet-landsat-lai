@@ -5,14 +5,17 @@ CGM
 This is a very slightly modified version of the v2 script that I am using for
 generating test assets.  I have not modified any of the actual LAI calculation.
 """
+import argparse
+import logging
+import os
 import sys
 
 import ee
 
-ee.Initialize()
-# gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
-# ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
-#               use_cloud_api=True)
+# ee.Initialize()
+gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
+              use_cloud_api=True)
 
 
 def renameLandsat(image):
@@ -323,31 +326,50 @@ def getLAIColl_all(start, end, path, row):
     return lai_coll
 
 
-def main(argv):
+def main(overwrite_flag=False, gee_key_file=None):
+    """Export Landsat LAI images
 
-    # # Set path row
-    # path = int(argv[1])
-    # row = int(argv[2])
-    # start_year = int(argv[3])
-    # end_year = int(argv[4])
-    # version = int(argv[5])
-    #
-    # pathrow = str(path).zfill(3)+str(row).zfill(3)
-    # assetDir = 'projects/disalexi/example_data/LAI/LAI_'+pathrow+'_v'+str(version)+'/'
-    #
-    # start = str(start_year)+'-01-01'
-    # end = str(end_year+1)+'-01-01'
+    Parameters
+    ----------
+    overwrite_flag : bool, optional
+        If True, overwrite existing files (the default is False).
+    gee_key_file : str, None, optional
+        Earth Engine service account JSON key file (the default is None).
+    start_dt : datetime, optional
+        Override the start date in the INI file
+        (the default is None which will use the INI start date).
+    end_dt : datetime, optional
+        Override the (inclusive) end date in the INI file
+        (the default is None which will use the INI end date).
 
+    Returns
+    -------
+    None
 
-    # Set path row
+    """
+    logging.info('\nExport Landsat LAI images')
+
+    # Hard code input parameters for now
     path = 44
     row = 33
     version = 'v2'
     pathrow = '{:03d}{:03d}'.format(int(path), int(row))
-    assetDir = 'users/cgmorton/lai/landsat/v2/'
+    assetDir = 'projects/openet/lai/landsat/v2/'
+    # start = '2017-07-01'
+    # end = '2017-08-01'
+    # gee_key_file = None
     start = '2017-01-01'
     end = '2018-01-01'
+    gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
 
+    logging.info('\nInitializing Earth Engine')
+    if gee_key_file:
+        logging.info('  Using service account key file: {}'.format(gee_key_file))
+        # The "EE_ACCOUNT"  doesn't seem to be used if the key file is valid
+        ee.Initialize(ee.ServiceAccountCredentials('test', key_file=gee_key_file),
+                      use_cloud_api=True)
+    else:
+        ee.Initialize(use_cloud_api=True)
 
     # Get Landsat collection
     landsat_coll = getLandsat(start, end, path, row)
@@ -361,7 +383,6 @@ def main(argv):
     # print(laiColl.limit(10).getInfo())
 
     for i in range(n):
-
         landsat_image = ee.Image(landsat_coll.toList(5000).get(i))
         # print(landsat_image.getInfo())
 
@@ -371,18 +392,23 @@ def main(argv):
         sensor_dict = {'LANDSAT_5':'LT05', 'LANDSAT_7':'LE07', 'LANDSAT_8':'LC08'}
         sensor = landsat_image.get('SATELLITE').getInfo()
         sensor = sensor_dict[sensor]
+        outname = '{}_{}_{}'.format(sensor, pathrow, date)
+        logging.info(outname)
 
         proj = landsat_image.select([0]).projection().getInfo()
 
         laiImage = getLAIImage(landsat_image, sensor, nonveg=1)
 
-        outname = '{}_{}_{}'.format(sensor, pathrow, date)
-        print(outname)
-
         asset_id = assetDir + outname.lower()
+        logging.debug('  {}'.format(asset_id))
+
         if ee.data.getInfo(asset_id):
-            print('  asset already exists - skipping')
-            continue
+            if overwrite_flag:
+                print('  asset already exists - overwriting')
+                ee.data.deleteAsset(asset_id)
+            else:
+                print('  asset already exists - skipping')
+                continue
 
         task = ee.batch.Export.image.toAsset(
             image=laiImage,
@@ -393,11 +419,59 @@ def main(argv):
         )
 
         task.start()  # submit task
-        task_id = task.id
-        print('  {}'.format(task_id))
+        logging.debug('  {}'.format(task.id))
         
         sys.stdout.flush()
 
 
+def arg_valid_file(file_path):
+    """Argparse specific function for testing if file exists
+
+    Convert relative paths to absolute paths
+    """
+    if os.path.isfile(os.path.abspath(os.path.realpath(file_path))):
+        return os.path.abspath(os.path.realpath(file_path))
+        # return file_path
+    else:
+        raise argparse.ArgumentTypeError('{} does not exist'.format(file_path))
+
+
+def arg_parse():
+    """"""
+    parser = argparse.ArgumentParser(
+        description='Export WRS2 images for interpolation',
+        formatter_class=argparse.ArgumentDefaultsHelpFormatter)
+    # parser.add_argument(
+    #     '-i', '--ini', type=utils.arg_valid_file,
+    #     help='Input file', metavar='FILE')
+    parser.add_argument(
+        '-o', '--overwrite', default=False, action='store_true',
+        help='Force overwrite of existing files')
+    parser.add_argument(
+        '-d', '--debug', default=logging.INFO, const=logging.DEBUG,
+        help='Debug level logging', action='store_const', dest='loglevel')
+    parser.add_argument(
+        '--key', type=arg_valid_file, metavar='FILE',
+        help='Earth Engine service account JSON key file')
+    # parser.add_argument(
+    #     '-s', '--start', type=utils.valid_date, metavar='DATE', default=None,
+    #     help='Start date (format YYYY-MM-DD)')
+    # parser.add_argument(
+    #     '-e', '--end', type=utils.valid_date, metavar='DATE', default=None,
+    #     help='End date (format YYYY-MM-DD)')
+    # parser.add_argument(
+    #     '--delay', default=0, type=float,
+    #     help='Delay (in seconds) between each export tasks')
+    args = parser.parse_args()
+
+    return args
+
+
 if __name__ == "__main__":
-    main(sys.argv)
+    args = arg_parse()
+    logging.basicConfig(level=args.loglevel, format='%(message)s')
+    logging.getLogger('googleapiclient').setLevel(logging.ERROR)
+
+    main(overwrite_flag=args.overwrite, gee_key_file=args.key,
+         # start_dt=args.start, end_dt=args.end,
+         )

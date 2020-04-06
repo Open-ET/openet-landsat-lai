@@ -190,6 +190,7 @@ def getTrainImg(image):
     # Map NLCD codes to biomes
     # TODO: Check values for other NLCD codes (11, 12, 51)
     biom_remap = {
+        11: 0, 12: 0,
         21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
         41: 1, 42: 2, 43: 3, 52: 4,
         71: 5, 81: 5, 82: 6, 90: 7, 95: 8,

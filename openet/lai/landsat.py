@@ -188,6 +188,7 @@ def getTrainImg(image):
     mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
 
     # Map NLCD codes to biomes
+    # TODO: Check values for other NLCD codes (11, 12, 51)
     biom_remap = {
         21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
         41: 1, 42: 2, 43: 3, 52: 4,
@@ -195,29 +196,39 @@ def getTrainImg(image):
     }
     # fromList = [21, 22, 23, 24, 31, 41, 42, 43, 52, 71, 81, 82, 90, 95]
     # toList = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8]
-    biom_img = nlcd_img\
-        .remap(list(biom_remap.keys()), list(biom_remap.values())) \
-        .rename('biome2')
+    biom_img = nlcd_img.remap(list(biom_remap.keys()), list(biom_remap.values()))
 
     # Add other bands
-    # TODO: Test if the NLCD should be added directly or mapped to the mask
-    image = image \
-        .addBands(nlcd_img.rename(['nlcd'])) \
-        .addBands(mask_img.add(ee.Image.pixelLonLat().select(['longitude']))
-                    .rename(['lon'])) \
-        .addBands(mask_img.add(ee.Image.pixelLonLat().select(['latitude']))
-                    .rename(['lat'])) \
-        .addBands(mask_img.add(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
-        .addBands(mask_img.add(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
-        .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
-                    .rename(['sun_zenith'])) \
-        .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
-                    .rename(['sun_azimuth'])) \
-        .addBands(biom_img) \
+    # CM - Test adding all bands directly than clipping using updateMask call
+    image = image.addBands(nlcd_img.rename(['nlcd'])) \
+        .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon'])) \
+        .addBands(ee.Image.pixelLonLat().select(['latitude']).rename(['lat'])) \
+        .addBands(ee.Image.constant(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
+        .addBands(ee.Image.constant(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
+        .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
+                  .rename(['sun_zenith'])) \
+        .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
+                  .rename(['sun_azimuth'])) \
+        .addBands(biom_img.rename('biome2')) \
         .updateMask(mask_img.add(1))
         # .addBands(ee.Image.constant(ft.get('year')).rename(['year'])))
         # .addBands(ee.Image.constant(ee.Number(ft.get('doy'))).rename(['DOY'])))
-        # .addBands(mask_prev.add(nlcd.select([0], ['nlcd'])))
+
+    # # CM - Add all bands to mask image to avoid clip or updateMask calls
+    # image = image.addBands(mask_img.add(nlcd_img.rename(['nlcd']))) \
+    #     .addBands(mask_img.add(ee.Image.pixelLonLat().select(['longitude']))
+    #                 .rename(['lon'])) \
+    #     .addBands(mask_img.add(ee.Image.pixelLonLat().select(['latitude']))
+    #                 .rename(['lat'])) \
+    #     .addBands(mask_img.add(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
+    #     .addBands(mask_img.add(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
+    #     .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
+    #                 .rename(['sun_zenith'])) \
+    #     .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
+    #                 .rename(['sun_azimuth'])) \
+    #     .addBands(mask_img.add(biom_img.rename('biome2')))
+    #     # .addBands(ee.Image.constant(ft.get('year')).rename(['year'])))
+    #     # .addBands(ee.Image.constant(ee.Number(ft.get('doy'))).rename(['DOY'])))
 
     # CM - Add the NLCD band name as a property to test which year was selected
     image = image.set({'nlcd_year': nlcd_img.select([0]).bandNames().get(0)})

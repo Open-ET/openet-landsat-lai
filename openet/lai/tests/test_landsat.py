@@ -228,11 +228,36 @@ def test_getTrainImg_property_values():
     # assert output['sun_zenith'] == input_img.get('SOLAR_ZENITH_ANGLE').getInfo()
 
 
-def test_getTrainImg_biome_point_values():
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+@pytest.mark.parametrize(
+    "image_id, site_xy, nlcd, biome2",
+    [
+        [LANDSAT8_IMAGE_ID, TEST_POINT, 81, 6],
+        # CM - These are getting set to None right now
+        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+        # ['LANDSAT/LC08/C01/T1_SRLC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
+        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 51, 0],   # Folsom Lake
+    ]
+)
+def test_getTrainImg_biome_point_values(image_id, site_xy, nlcd, biome2):
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
     output = utils.point_image_value(
-        openet.lai.landsat.getTrainImg(input_img), xy=TEST_POINT)
-    assert output['biome2'] == 6
+        openet.lai.landsat.getTrainImg(input_img), xy=site_xy)
+    assert output['biome2'] == biome2
+
+
+@pytest.mark.parametrize(
+    "image_id, site_xy, nlcd, biome2",
+    [
+        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
+        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 51, 0],   # Folsom Lake
+    ]
+)
+def test_getTrainImg_biome_nodata(image_id, site_xy, nlcd, biome2):
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
+    output = utils.point_image_value(
+        openet.lai.landsat.getTrainImg(input_img), xy=site_xy)
+    assert output['biome2'] is None
 
 
 # TODO: Write a test to see if maskLST is (or isn't) being called by getTrainImg

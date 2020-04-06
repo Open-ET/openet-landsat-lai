@@ -6,6 +6,7 @@ import pprint
 
 import ee
 
+import openet.lai
 import openet.lai.landsat
 import openet.lai.utils as utils
 
@@ -36,13 +37,14 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     # Hard code input parameters for now
     path = 44
     row = 33
-    version = 'v3'
-    coll_id = 'projects/openet/lai/landsat/v3/'
-    start_date = '2017-07-01'
-    end_date = '2017-08-01'
-    # start_date = '2017-01-01'
-    # end_date = '2018-01-01'
+    version = openet.lai.__version__.replace('.', 'p')
+    coll_id = f'projects/openet/lai/landsat/v{version}'
+    # start_date = '2017-07-01'
+    # end_date = '2017-08-01'
+    start_date = '2017-01-01'
+    end_date = '2018-01-01'
     gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+    # gee_key_file = '/Users/mortonc/Projects/keys/openet-dri-gee.json'
 
 
     logging.info('\nInitializing Earth Engine')
@@ -54,6 +56,12 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     else:
         ee.Initialize(use_cloud_api=True)
 
+    if not ee.data.getInfo(coll_id):
+        logging.info('\nExport collection does not exist and will be built'
+                     '\n  {}'.format(coll_id))
+        input('Press ENTER to continue')
+        ee.data.createAsset({'type': 'IMAGE_COLLECTION'}, coll_id)
+
     # Get a list of the available Landsat asset IDs
     input_asset_id_list = getLandsatSR(start_date, end_date, path, row) \
         .sort('system:time_start') \
@@ -63,7 +71,7 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     # Process each Landsat image separately
     for input_asset_id in input_asset_id_list:
         landsat_id = input_asset_id.split('/')[-1]
-        output_asset_id = coll_id + landsat_id.lower()
+        output_asset_id = f'{coll_id}/{landsat_id.lower()}'
         logging.info(landsat_id)
         logging.debug('  {}'.format(input_asset_id))
         logging.debug('  {}'.format(output_asset_id))
@@ -97,7 +105,8 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
 
         # Apply the cloud mask to the image to mimic what is happening in the
         # version 2 export script where the Landsat collections are masked
-        prep_img = maskLST(prep_img)
+        # CM - I don't think this is actually needed here since maskLST internally
+        # prep_img = maskLST(prep_img)
 
         # Sensor must currently be a python string because it is used to build
         #   a feature collection ID in the lai code

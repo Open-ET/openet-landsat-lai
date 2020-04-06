@@ -42,12 +42,11 @@ def main(overwrite_flag=False, gee_key_file=None):
     version = 'v2'
     pathrow = '{:03d}{:03d}'.format(int(path), int(row))
     assetDir = 'projects/openet/lai/landsat/v2/'
-    # start = '2017-07-01'
-    # end = '2017-08-01'
-    # gee_key_file = None
     start = '2017-01-01'
     end = '2018-01-01'
-    gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+    gee_key_file = '/Users/mortonc/Projects/keys/openet-dri-gee.json'
+    # gee_key_file = None
+
 
     logging.info('\nInitializing Earth Engine')
     if gee_key_file:
@@ -250,7 +249,6 @@ def getTrainImg(image):
         '2015':6,'2016':6,'2017':6,'2018':6,'2019':6}
     nlcd_dict = ee.Dictionary(nlcd_dict)
 
-    # CGM - This nlcd image is not being used after this, should it be?
     # Get NLCD for corresponding year
     nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
         

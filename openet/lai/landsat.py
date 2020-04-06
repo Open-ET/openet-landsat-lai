@@ -36,7 +36,7 @@ def getQABits(image, start, end, newName):
     # Compute the bits we need to extract.
     pattern = 0
     for i in range(start, end + 1):
-         pattern = pattern + 2**i
+         pattern = pattern + 2 ** i
 
     # Return a single band image of the extracted QA bits, giving the band
     # a new name.
@@ -47,6 +47,7 @@ def maskLST(image):
     """
     Function that masks a Landsat image based on the QA band
     """
+    # CM - Testing .eq(1) won't work for multibit values like cloud confidence
     pixelQA = image.select('pixel_qa')
     cloud = getQABits(pixelQA, 1, 1, 'clear')
     return image.updateMask(cloud.eq(1))
@@ -56,42 +57,53 @@ def setDate(image):
     """
     Function that adds a "date" property to an image in format "YYYYmmdd"
     """
-
-    eeDate = ee.Date(image.get('system:time_start'))
-    date = eeDate.format('YYYYMMdd')
-    return image.set('date',date)
+    image_date = ee.Date(image.get('system:time_start'))
+    return image.set('date', image_date.format('YYYYMMdd'))
 
 
-def getVIs(img):
+def getVIs(image):
     """
     Compute VIs for an Landsat image
     """
-    SR = img.expression('float(b("nir")) / b("red")')
-    NDVI = img.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
-    EVI = img.expression(
+    SR = image.expression('float(b("nir")) / b("red")')
+    NDVI = image.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
+    NDWI = image.expression(
+        'float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
+
+    # CM - This equation is only correct for the raw scaled (0-10000) SR images
+    EVI = image.expression(
         '2.5 * float((b("nir") - b("red"))) / '
         '(b("nir") + 6*b("red") - 7.5*float(b("blue")) + 10000)')
-    # GCI = img.expression('float(b("nir")) / b("green") - 1')
-    # EVI2 = img.expression('2.5 * float((b("nir") - b("red"))) / (b("nir") + 2.4*float(b("red")) + 10000)')
-    # OSAVI = img.expression('1.16 * float(b("nir") - b("red")) / (b("nir") + b("red") + 1600)')
-    NDWI = img.expression('float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
-    # NDWI2 = img.expression('float((b("nir") - b("swir2"))) / (b("nir") + b("swir2"))')
-    # MSR = img.expression('float(b("nir")) / b("swir1")')
-    # MTVI2 = img.expression('1.5*(1.2*float(b("nir") - b("green")) - 2.5*float(b("red") - b("green")))/sqrt((2*b("nir")+10000)*(2*b("nir")+10000) - (6*b("nir") - 5*sqrt(float(b("nir"))))-5000)')
+    # EVI = image.expression(
+    #     '2.5 * float((b("nir") - b("red"))) / '
+    #     '(b("nir") + 6*b("red") - 7.5 * float(b("blue")) + 1.0)')
 
-    return img.addBands(SR.select([0], ['SR'])) \
-              .addBands(NDVI.select([0], ['NDVI'])) \
-              .addBands(EVI.select([0], ['EVI'])) \
-              .addBands(NDWI.select([0], ['NDWI']))
-              # .addBands(GCI.select([0], ['GCI']))
-              # .addBands(EVI2.select([0], ['EVI2']))
-              # .addBands(OSAVI.select([0], ['OSAVI']))
-              # .addBands(NDWI2.select([0], ['NDWI2']))
-              # .addBands(MSR.select([0], ['MSR']))
-              # .addBands(MTVI2.select([0], ['MTVI2']))
+    # GCI = image.expression('float(b("nir")) / b("green") - 1')
+    # EVI2 = image.expression(
+    #     '2.5 * float((b("nir") - b("red"))) / '
+    #     '(b("nir") + 2.4 * float(b("red")) + 10000)')
+    # OSAVI = image.expression(
+    #     '1.16 * float(b("nir") - b("red")) / (b("nir") + b("red") + 1600)')
+    # NDWI2 = image.expression(
+    #     'float((b("nir") - b("swir2"))) / (b("nir") + b("swir2"))')
+    # MSR = image.expression('float(b("nir")) / b("swir1")')
+    # MTVI2 = image.expression(
+    #     '1.5 * (1.2 * float(b("nir") - b("green")) - 2.5 * float(b("red") - b("green"))) / '
+    #     'sqrt((2*b("nir")+10000)*(2*b("nir")+10000) - (6*b("nir") - 5*sqrt(float(b("nir"))))-5000)')
+
+    return image.addBands(SR.select([0], ['SR'])) \
+                .addBands(NDVI.select([0], ['NDVI'])) \
+                .addBands(NDWI.select([0], ['NDWI'])) \
+                .addBands(EVI.select([0], ['EVI']))
+                # .addBands(GCI.select([0], ['GCI']))
+                # .addBands(EVI2.select([0], ['EVI2']))
+                # .addBands(OSAVI.select([0], ['OSAVI']))
+                # .addBands(NDWI2.select([0], ['NDWI2']))
+                # .addBands(MSR.select([0], ['MSR']))
+                # .addBands(MTVI2.select([0], ['MTVI2']))
 
 
-def trainRF(samples, features, classProperty):
+def trainRF(samples, features, classProperty='MCD_LAI'):
     """
     Function that trains a Random Forest regressor
     """
@@ -100,7 +112,7 @@ def trainRF(samples, features, classProperty):
                                              variablesPerSplit=8) \
                                 .setOutputMode('REGRESSION') \
                                 .train(features=samples,
-                                       classProperty='MCD_LAI',
+                                       classProperty=classProperty,
                                        inputProperties=features)
 
     return rfRegressor

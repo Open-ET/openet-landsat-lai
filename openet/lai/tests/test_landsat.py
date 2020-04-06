@@ -174,6 +174,7 @@ def test_getVIs_point_values(image_id, xy, sr, ndvi, evi, ndwi, tol=0.0001):
 
 def test_getTrainImg_bands():
     input_bands = {'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa'}
+    # Both the VI and training bands get added in getTrainImg
     vi_bands = {'SR', 'NDVI', 'NDWI', 'EVI'}
     training_bands = {'nlcd', 'lon', 'lat', 'path', 'row', 'sun_zenith',
                       'sun_azimuth', 'biome2'}
@@ -182,65 +183,66 @@ def test_getTrainImg_bands():
     assert (input_bands | vi_bands | training_bands) == set(output_bands)
 
 
-# def test_getTrainImg_bands():
-#     input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
-#     output = openet.lai.landsat.getTrainImg(input_img).getInfo()
+@pytest.mark.parametrize(
+    "date, nlcd_band",
+    [
+        # CM - We don't really need to test all of these
+        ['2003-01-01', 'landcover_2004'],
+        ['2007-01-01', 'landcover_2006'],
+        ['2008-01-01', 'landcover_2008'],
+        ['2012-01-01', 'landcover_2011'],
+        # Check if the transition at the new year is handled
+        ['2014-12-31', 'landcover_2013'],
+        ['2015-01-01', 'landcover_2016'],
+        # Check the supported start/end years
+        ['1997-01-01', 'landcover_2001'],
+        ['2020-01-01', 'landcover_2016'],
+        # # What should happen for years outside the supported range
+        # # Currently this will raise a EEException
+        # # (about the dictionary not having the correct key)
+        # ['1996-01-01', 'landcover_1997'],
+        # ['2021-01-01', 'landcover_2016'],
+    ]
+)
+def test_getTrainImg_nlcd_year(date, nlcd_band):
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID)) \
+        .set({'system:time_start': ee.Date(date).millis()})
+    output = openet.lai.landsat.getTrainImg(input_img).get('nlcd_year').getInfo()
+    assert output == nlcd_band
 
-    # # nlcd2011 = ee.Image('USGS/NLCD/NLCD2011')
-    #
-    # # NLCD processing
-    # year = ee.Date(image.get('system:time_start')).get('year')
-    # nlcd_all = ee.Image('USGS/NLCD/NLCD2001').select(['landcover'], ['landcover_2001']) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2004').select(['landcover'], ['landcover_2004'])) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2006').select(['landcover'], ['landcover_2006'])) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2008').select(['landcover'], ['landcover_2008'])) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2011').select(['landcover'], ['landcover_2011'])) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2013').select(['landcover'], ['landcover_2013'])) \
-    #     .addBands(ee.Image('USGS/NLCD/NLCD2016').select(['landcover'], ['landcover_2016']))
-    #
-    # nlcd_dict = {
-    #     '1997':0, '1998':0, '1999':0, '2000':0, '2001':0, '2002':0,
-    #     '2003':1, '2004':1, '2005':1,
-    #     '2006':2, '2007':2,
-    #     '2008':3, '2009':3,
-    #     '2010':4, '2011':4, '2012':4, '2013':5,
-    #     '2014':5,
-    #     '2015':6, '2016':6, '2017':6, '2018':6, '2019':6, '2020':6,
-    # }
-    # nlcd_dict = ee.Dictionary(nlcd_dict)
-    #
-    # # CGM - This nlcd image is not being used after this, should it be?
-    # # Get NLCD for corresponding year
-    # nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
-    #
-    # # add bands
-    # image = maskLST(image)
-    # image = getVIs(image)
-    # mask_prev = image.select([0]).mask()
-    #
-    # # TODO: Try applying these values to a mask image instead of clipping
-    # # add other bands
-    # image = image.addBands(nlcd.select([0], ['nlcd']).clip(image.geometry()))
-    # image = image.addBands(
-    #     ee.Image.pixelLonLat().select(['longitude', 'latitude'], ['lon', 'lat']).clip(image.geometry()))
-    # # image = image.addBands(ee.Image.constant(ft.get('year')).select([0], ['year']).clip(image.geometry()))
-    # image = image.addBands(
-    #     ee.Image.constant(ee.Number(image.get('WRS_PATH'))).select([0], ['path'])).clip(image.geometry())
-    # image = image.addBands(
-    #     ee.Image.constant(ee.Number(image.get('WRS_ROW'))).select([0], ['row'])).clip(image.geometry())
-    # image = image.addBands(
-    #     ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE'))).select([0], ['sun_zenith'])).clip(image.geometry())
-    # image = image.addBands(
-    #     ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE'))).select([0], ['sun_azimuth'])).clip(image.geometry())
-    # # image = image.addBands(ee.Image.constant(ee.Number(ft.get('doy'))).select([0], ['DOY'])).clip(image.geometry())
-    #
-    # # add biome band
-    # fromList = [21, 22, 23, 24, 31, 41, 42, 43, 52, 71, 81, 82, 90, 95]
-    # toList = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8]
-    # image = image.addBands(image.select('nlcd').remap(fromList, toList).rename('biome2')) \
-    #     .updateMask(mask_prev)
-    #
-    # return image
+
+def test_getTrainImg_property_values():
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+    output = utils.point_image_value(
+        openet.lai.landsat.getTrainImg(input_img), xy=TEST_POINT)
+    scene_id = LANDSAT8_IMAGE_ID.split('/')[-1]
+    assert abs(output['lon'] - TEST_POINT[0]) <= 0.0001
+    assert abs(output['lat'] - TEST_POINT[1]) <= 0.0001
+    assert output['path'] == int(scene_id.split('_')[1][0:3])
+    assert output['row'] == int(scene_id.split('_')[1][3:6])
+    # CM - Hardcoding solar angles for now to avoid extra getInfo calls
+    assert output['sun_azimuth'] == 127.089134
+    assert output['sun_zenith'] == 25.720642
+    # assert output['sun_azimuth'] == input_img.get('SOLAR_AZIMUTH_ANGLE').getInfo()
+    # assert output['sun_zenith'] == input_img.get('SOLAR_ZENITH_ANGLE').getInfo()
+
+
+# def test_getTrainImg_biome_remap():
+#     input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID)) \
+#         .set({'system:time_start': ee.Date(date).millis()})
+#     output = openet.lai.landsat.getTrainImg(input_img).getInfo()
+#     assert output
+
+
+# TODO: Write a test to see if maskLST is (or isn't) being called by getTrainImg
+#   (because this changed between 0.0.2 and 0.0.3)
+# def test_getTrainImg_maskLST():
+#     assert False
+
+
+# TODO: Write a test to see if updateMask is called/applied?
+# def test_getTrainImg_update_mask():
+#     assert False
 
 
 # def test_trainRF():

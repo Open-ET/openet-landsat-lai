@@ -155,7 +155,6 @@ def getTrainImg(image):
         '2015':6,'2016':6,'2017':6,'2018':6,'2019':6}
     nlcd_dict = ee.Dictionary(nlcd_dict)
 
-    # CGM - This nlcd image is not being used after this, should it be?
     # Get NLCD for corresponding year
     nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
         

@@ -174,18 +174,17 @@ def getTrainImg(image):
         '2003':1, '2004':1, '2005':1,
         '2006':2, '2007':2, 
         '2008':3, '2009':3, 
-        '2010':4, '2011':4, '2012':4, '2013':5, 
-        '2014':5,
+        '2010':4, '2011':4, '2012':4,
+        '2013':5, '2014':5,
         '2015':6, '2016':6, '2017':6, '2018':6, '2019':6, '2020':6,
     }
     nlcd_dict = ee.Dictionary(nlcd_dict)
 
-    # CGM - This nlcd image is not being used after this, should it be?
     # Get NLCD for corresponding year
     nlcd = nlcd_all.select([nlcd_dict.get(ee.Number(year).format('%d'))])
 
-    # add bands
-    image = maskLST(image)
+    # DEADBEEF - For version 0.0.2 test running exports without masking
+    # image = maskLST(image)
     image = getVIs(image)
     mask_prev = image.select([0]).mask()
 
@@ -194,7 +193,6 @@ def getTrainImg(image):
     image = image.addBands(nlcd.select([0], ['nlcd']).clip(image.geometry()))
     image = image.addBands(
         ee.Image.pixelLonLat().select(['longitude', 'latitude'], ['lon', 'lat']).clip(image.geometry()))
-    # image = image.addBands(ee.Image.constant(ft.get('year')).select([0], ['year']).clip(image.geometry()))
     image = image.addBands(
         ee.Image.constant(ee.Number(image.get('WRS_PATH'))).select([0], ['path'])).clip(image.geometry())
     image = image.addBands(
@@ -203,6 +201,7 @@ def getTrainImg(image):
         ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE'))).select([0], ['sun_zenith'])).clip(image.geometry())
     image = image.addBands(
         ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE'))).select([0], ['sun_azimuth'])).clip(image.geometry())
+    # image = image.addBands(ee.Image.constant(ft.get('year')).select([0], ['year']).clip(image.geometry()))
     # image = image.addBands(ee.Image.constant(ee.Number(ft.get('doy'))).select([0], ['DOY'])).clip(image.geometry())
 
     # add biome band
@@ -210,6 +209,9 @@ def getTrainImg(image):
     toList = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8]
     image = image.addBands(image.select('nlcd').remap(fromList, toList).rename('biome2')) \
         .updateMask(mask_prev)
+
+    # CM - Add the NLCD band name as a property to test which year was selected
+    image = image.set({'nlcd_year': nlcd.select([0]).bandNames().get(0)})
 
     return image
 

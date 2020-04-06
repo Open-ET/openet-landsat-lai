@@ -2,12 +2,12 @@
 import argparse
 import datetime
 import logging
-import os
 import pprint
 
 import ee
 
 import openet.lai.landsat
+import openet.lai.utils as utils
 
 
 def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
@@ -55,7 +55,7 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         ee.Initialize(use_cloud_api=True)
 
     # Get a list of the available Landsat asset IDs
-    input_asset_id_list = getLandsat(start_date, end_date, path, row) \
+    input_asset_id_list = getLandsatSR(start_date, end_date, path, row) \
         .sort('system:time_start') \
         .aggregate_array('system:id') \
         .getInfo()
@@ -173,17 +173,7 @@ def maskLST(image):
     return image.updateMask(cloud.eq(1))
 
 
-# def setDate(image):
-#     """
-#     Function that adds a "date" property to an image in format "YYYYmmdd"
-#     """
-#
-#     eeDate = ee.Date(image.get('system:time_start'))
-#     date = eeDate.format('YYYYMMdd')
-#     return image.set('date', date)
-
-
-def getLandsat(start, end, path, row):
+def getLandsatSR(start, end, path, row):
     """
     Get Landsat image collection
     """
@@ -196,7 +186,6 @@ def getLandsat(start, end, path, row):
         # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
         # .select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'pixel_qa'],
         #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-        # .map(maskLST)
 
     # Landsat 7
     Landsat7_sr = ee.ImageCollection('LANDSAT/LE07/C01/T1_SR')  \
@@ -207,7 +196,6 @@ def getLandsat(start, end, path, row):
         # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
         # .select(['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
         #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-        # .map(maskLST)
 
     # Landsat 5
     Landsat5_sr = ee.ImageCollection('LANDSAT/LT05/C01/T1_SR') \
@@ -218,68 +206,35 @@ def getLandsat(start, end, path, row):
         # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
         # .select(['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
         #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-        # .map(maskLST)
 
     Landsat_sr_coll = Landsat8_sr.merge(Landsat5_sr).merge(Landsat7_sr)
-    # Landsat_sr_coll = Landsat8_sr.merge(Landsat5_sr).merge(Landsat7_sr).map(setDate)
 
     return Landsat_sr_coll
-
-
-def arg_valid_file(file_path):
-    """Argparse specific function for testing if file exists
-
-    Convert relative paths to absolute paths
-    """
-    if os.path.isfile(os.path.abspath(os.path.realpath(file_path))):
-        return os.path.abspath(os.path.realpath(file_path))
-        # return file_path
-    else:
-        raise argparse.ArgumentTypeError('{} does not exist'.format(file_path))
-
-
-def arg_valid_date(input_date):
-    """Check that a date string is ISO format (YYYY-MM-DD)
-
-    Parameters
-    ----------
-    input_date : string
-
-    Returns
-    -------
-    datetime
-
-    """
-    try:
-        return datetime.datetime.strptime(input_date, '%Y-%m-%d')
-    except ValueError:
-        msg = f'Not a valid date: "{input_date}".'
-        raise argparse.ArgumentTypeError(msg)
 
 
 def arg_parse():
     """"""
     parser = argparse.ArgumentParser(
-        description='Export WRS2 images for interpolation',
+        description='Export Landsat LAI images',
         formatter_class=argparse.ArgumentDefaultsHelpFormatter)
     # parser.add_argument(
     #     '-i', '--ini', type=utils.arg_valid_file,
     #     help='Input file', metavar='FILE')
     parser.add_argument(
-        '-o', '--overwrite', default=False, action='store_true',
-        help='Force overwrite of existing files')
-    parser.add_argument(
-        '-d', '--debug', default=logging.INFO, const=logging.DEBUG,
-        help='Debug level logging', action='store_const', dest='loglevel')
-    parser.add_argument(
-        '--key', type=arg_valid_file, metavar='FILE',
-        help='Earth Engine service account JSON key file')
-    parser.add_argument(
-        '-s', '--start', type=arg_valid_date, metavar='DATE', default=None,
+        '-s', '--start', type=utils.arg_valid_date, metavar='DATE', default=None,
         help='Start date (format YYYY-MM-DD)')
     parser.add_argument(
-        '-e', '--end', type=arg_valid_date, metavar='DATE', default=None,
+        '-e', '--end', type=utils.arg_valid_date, metavar='DATE', default=None,
         help='End date (format YYYY-MM-DD)')
+    parser.add_argument(
+        '--key', type=utils.arg_valid_file, metavar='FILE',
+        help='Earth Engine service account JSON key file')
+    parser.add_argument(
+        '--overwrite', default=False, action='store_true',
+        help='Force overwrite of existing files')
+    parser.add_argument(
+        '--debug', default=logging.INFO, const=logging.DEBUG,
+        help='Debug level logging', action='store_const', dest='loglevel')
     # parser.add_argument(
     #     '--delay', default=0, type=float,
     #     help='Delay (in seconds) between each export tasks')
@@ -293,6 +248,6 @@ if __name__ == "__main__":
     logging.basicConfig(level=args.loglevel, format='%(message)s')
     logging.getLogger('googleapiclient').setLevel(logging.ERROR)
 
-    main(overwrite_flag=args.overwrite, gee_key_file=args.key,
-         start_dt=args.start, end_dt=args.end,
+    main(start_dt=args.start, end_dt=args.end,
+         overwrite_flag=args.overwrite, gee_key_file=args.key,
          )

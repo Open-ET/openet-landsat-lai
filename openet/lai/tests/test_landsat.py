@@ -178,9 +178,10 @@ def test_getTrainImg_bands():
     vi_bands = {'SR', 'NDVI', 'NDWI', 'EVI'}
     training_bands = {'nlcd', 'lon', 'lat', 'path', 'row', 'sun_zenith',
                       'sun_azimuth', 'biome2'}
+    target_bands = input_bands | vi_bands | training_bands
     input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
     output_bands = openet.lai.landsat.getTrainImg(input_img).bandNames().getInfo()
-    assert (input_bands | vi_bands | training_bands) == set(output_bands)
+    assert target_bands == set(list(output_bands))
 
 
 @pytest.mark.parametrize(
@@ -227,11 +228,11 @@ def test_getTrainImg_property_values():
     # assert output['sun_zenith'] == input_img.get('SOLAR_ZENITH_ANGLE').getInfo()
 
 
-# def test_getTrainImg_biome_remap():
-#     input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID)) \
-#         .set({'system:time_start': ee.Date(date).millis()})
-#     output = openet.lai.landsat.getTrainImg(input_img).getInfo()
-#     assert output
+def test_getTrainImg_biome_point_values():
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+    output = utils.point_image_value(
+        openet.lai.landsat.getTrainImg(input_img), xy=TEST_POINT)
+    assert output['biome2'] == 6
 
 
 # TODO: Write a test to see if maskLST is (or isn't) being called by getTrainImg

@@ -34,7 +34,7 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     """
     logging.info('\nExport Landsat LAI images')
 
-    # Hard code input parameters for now
+    # CM - Hard coding input parameters for now
     path = 44
     row = 33
     version = openet.lai.__version__.replace('.', 'p')
@@ -45,6 +45,7 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     end_date = '2018-01-01'
     gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
     # gee_key_file = '/Users/mortonc/Projects/keys/openet-dri-gee.json'
+    cloud_cover_max = 70
 
 
     logging.info('\nInitializing Earth Engine')
@@ -63,7 +64,8 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         ee.data.createAsset({'type': 'IMAGE_COLLECTION'}, coll_id)
 
     # Get a list of the available Landsat asset IDs
-    input_asset_id_list = getLandsatSR(start_date, end_date, path, row) \
+    input_asset_id_list = getLandsatSR(start_date, end_date, path, row,
+                                       cloud_cover_max) \
         .sort('system:time_start') \
         .aggregate_array('system:id') \
         .getInfo()
@@ -78,19 +80,21 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
 
         if ee.data.getInfo(output_asset_id):
             if overwrite_flag:
-                print('  asset already exists - overwriting')
+                logging.info('  asset already exists - overwriting')
                 ee.data.deleteAsset(output_asset_id)
             else:
-                print('  asset already exists - skipping')
+                logging.info('  asset already exists - skipping')
                 continue
 
+        # TODO: Module should handle the band renaming and scaling
         # Copied from PTJPL Image.from_landsat_c1_sr()
         landsat_img = ee.Image(input_asset_id)
         input_bands = ee.Dictionary({
             'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
             'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
             'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B10', 'pixel_qa']})
-        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir', 'pixel_qa']
+        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
+                        'pixel_qa']
         spacecraft_id = ee.String(landsat_img.get('SATELLITE'))
         prep_img = landsat_img \
             .select(input_bands.get(spacecraft_id), output_bands) \
@@ -103,11 +107,6 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         # The current implementation is expecting raw unscaled images
         #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1]) \
 
-        # Apply the cloud mask to the image to mimic what is happening in the
-        # version 2 export script where the Landsat collections are masked
-        # CM - I don't think this is actually needed here since maskLST internally
-        # prep_img = maskLST(prep_img)
-
         # Sensor must currently be a python string because it is used to build
         #   a feature collection ID in the lai code
         sensor = landsat_id.split('_')[0].upper()
@@ -116,33 +115,87 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         # sensor = sensor_dict[sensor]
 
         # Get the projection as a client side object (for testing and debug)
-        image_proj = landsat_img.select([0]).projection().getInfo()
+        # image_proj = landsat_img.select([0]).projection().getInfo()
 
         # Get the projection as a server side object for production to avoid
         #   an extra getInfo call
-        # image_proj = landsat_img.select([0]).projection()
-        # image_crs = image_proj.crs()
-        # image_transform = ee.List(ee.Dictionary(
-        #     ee.Algorithms.Describe(image_proj)).get('transform'))
+        image_proj = landsat_img.select(['B4']).projection()
+        image_crs = image_proj.crs()
+        image_transform = ee.List(ee.Dictionary(
+            ee.Algorithms.Describe(image_proj)).get('transform'))
 
         # Compute LAI image
-        lai_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1) \
+        output_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1) \
             .set({
                 'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
                 'lai_version': openet.lai.__version__,
+                # CM - Properties in scene export that may eventually be useful
+                # 'coll_id': coll_id,
+                # 'image_id': input_asset_id,
+                # 'scene_id': landsat_id,
+                # 'scale_factor': 1.0 / scale_factor,
             })
         #     .rename(['LAI']) \
 
+        # TODO: Long term we may want to save as scaled integers to save space
+        # if scale_factor > 1:
+        #     if output_type == 'int16':
+        #         output_img = output_img.multiply(scale_factor).round()\
+        #             .clamp(-32768, 32767).int16()
+        #     elif output_type == 'uint16':
+        #         output_img = output_img.multiply(scale_factor).round()\
+        #             .clamp(0, 65536).uint16()
+
+        # TODO: Long term we may want to clip ocean areas similar to scene export
+        # if clip_ocean_flag:
+        #     output_img = output_img\
+        #         .updateMask(ee.Image('projects/openet/ocean_mask'))
+
         # Start export
         task = ee.batch.Export.image.toAsset(
-            image=lai_img,
+            image=output_img,
             description='{}_LAI_{}'.format(landsat_id, version),
             assetId=output_asset_id,
-            crs=image_proj['crs'],
-            crsTransform=str(image_proj['transform']),
+            crs=image_crs,
+            crsTransform=image_transform,
+            # crs=image_proj['crs'],
+            # crsTransform=str(image_proj['transform']),
         )
         task.start()
         logging.debug('  {}'.format(task.id))
+
+
+# TODO: Test is DisALEXI Collection class could be used instead
+def getLandsatSR(start_date, end_date, path, row, cloud_cover_max=70):
+    """
+    Get Landsat SR image collection
+    """
+    # CM - Note, v2 export script filtered on 'CLOUD_COVER' not 'CLOUD_COVER_LAND'
+    # CM - None, v2 export script did not filter on 'DATA_TYPE'
+    Landsat8_sr = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') \
+        .filterDate(start_date, end_date) \
+        .filterMetadata('WRS_PATH', 'equals', path) \
+        .filterMetadata('WRS_ROW', 'equals', row) \
+        .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
+        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
+
+    Landsat7_sr = ee.ImageCollection('LANDSAT/LE07/C01/T1_SR')  \
+        .filterDate(start_date, end_date) \
+        .filterMetadata('WRS_PATH', 'equals', path) \
+        .filterMetadata('WRS_ROW', 'equals', row) \
+        .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
+        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
+
+    Landsat5_sr = ee.ImageCollection('LANDSAT/LT05/C01/T1_SR') \
+        .filterDate(start_date, end_date) \
+        .filterMetadata('WRS_PATH', 'equals', path) \
+        .filterMetadata('WRS_ROW', 'equals', row) \
+        .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
+        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
+
+    Landsat_sr_coll = Landsat8_sr.merge(Landsat5_sr).merge(Landsat7_sr)
+
+    return Landsat_sr_coll
 
 
 # def renameLandsat(image):
@@ -157,68 +210,6 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
 #     to_list = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
 #
 #     return image.select(from_list, to_list)
-
-
-def getQABits(image, start, end, newName):
-    """
-     Function that returns an image containing just the specified QA bits.
-    """
-    # Compute the bits we need to extract.
-    pattern = 0
-    for i in range(start, end + 1):
-         pattern = pattern + 2**i
-
-    # Return a single band image of the extracted QA bits, giving the band
-    # a new name.
-    return image.select([0], [newName]).bitwiseAnd(pattern).rightShift(start)
-
-
-def maskLST(image):
-    """
-    Function that masks a Landsat image based on the QA band
-    """
-    pixelQA = image.select('pixel_qa')
-    cloud = getQABits(pixelQA, 1, 1, 'clear')
-    return image.updateMask(cloud.eq(1))
-
-
-def getLandsatSR(start, end, path, row):
-    """
-    Get Landsat image collection
-    """
-    # Landsat 8
-    Landsat8_sr = ee.ImageCollection('LANDSAT/LC08/C01/T1_SR') \
-        .filterDate(start, end) \
-        .filterMetadata('WRS_PATH', 'equals', path) \
-        .filterMetadata('WRS_ROW', 'equals', row) \
-        .filterMetadata('CLOUD_COVER', 'less_than', 70)
-        # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
-        # .select(['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'pixel_qa'],
-        #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-
-    # Landsat 7
-    Landsat7_sr = ee.ImageCollection('LANDSAT/LE07/C01/T1_SR')  \
-        .filterDate(start, end) \
-        .filterMetadata('WRS_PATH', 'equals', path) \
-        .filterMetadata('WRS_ROW', 'equals', row) \
-        .filterMetadata('CLOUD_COVER', 'less_than', 70)
-        # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
-        # .select(['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
-        #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-
-    # Landsat 5
-    Landsat5_sr = ee.ImageCollection('LANDSAT/LT05/C01/T1_SR') \
-        .filterDate(start, end) \
-        .filterMetadata('WRS_PATH', 'equals', path) \
-        .filterMetadata('WRS_ROW', 'equals', row) \
-        .filterMetadata('CLOUD_COVER', 'less_than', 70)
-        # .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
-        # .select(['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
-        #         ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']) \
-
-    Landsat_sr_coll = Landsat8_sr.merge(Landsat5_sr).merge(Landsat7_sr)
-
-    return Landsat_sr_coll
 
 
 def arg_parse():

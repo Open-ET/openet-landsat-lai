@@ -69,6 +69,8 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         .sort('system:time_start') \
         .aggregate_array('system:id') \
         .getInfo()
+    # pprint.pprint(input_asset_id_list)
+    # input('ENTER')
 
     # Process each Landsat image separately
     for input_asset_id in input_asset_id_list:
@@ -177,21 +179,18 @@ def getLandsatSR(start_date, end_date, path, row, cloud_cover_max=70):
         .filterMetadata('WRS_PATH', 'equals', path) \
         .filterMetadata('WRS_ROW', 'equals', row) \
         .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
-        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
 
     Landsat7_sr = ee.ImageCollection('LANDSAT/LE07/C01/T1_SR')  \
         .filterDate(start_date, end_date) \
         .filterMetadata('WRS_PATH', 'equals', path) \
         .filterMetadata('WRS_ROW', 'equals', row) \
         .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
-        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
 
     Landsat5_sr = ee.ImageCollection('LANDSAT/LT05/C01/T1_SR') \
         .filterDate(start_date, end_date) \
         .filterMetadata('WRS_PATH', 'equals', path) \
         .filterMetadata('WRS_ROW', 'equals', row) \
         .filterMetadata('CLOUD_COVER_LAND', 'less_than', cloud_cover_max) \
-        .filterMetadata('DATA_TYPE', 'equals', 'L1TP')
 
     Landsat_sr_coll = Landsat8_sr.merge(Landsat5_sr).merge(Landsat7_sr)
 

@@ -229,35 +229,34 @@ def test_getTrainImg_property_values():
 
 
 @pytest.mark.parametrize(
-    "image_id, site_xy, nlcd, biome2",
+    "image_id, xy, nlcd, biome2",
     [
         [LANDSAT8_IMAGE_ID, TEST_POINT, 81, 6],
         # CM - These are getting set to None right now
-        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
-        # ['LANDSAT/LC08/C01/T1_SRLC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
-        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 51, 0],   # Folsom Lake
+        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
     ]
 )
-def test_getTrainImg_biome_point_values(image_id, site_xy, nlcd, biome2):
+def test_getTrainImg_biome_point_values(image_id, xy, nlcd, biome2):
     input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
     output = utils.point_image_value(
-        openet.lai.landsat.getTrainImg(input_img), xy=site_xy)
+        openet.lai.landsat.getTrainImg(input_img), xy=xy)
     assert output['biome2'] == biome2
 
 
-@pytest.mark.parametrize(
-    "image_id, site_xy, nlcd, biome2",
-    [
-        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
-        ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
-        # [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 51, 0],   # Folsom Lake
-    ]
-)
-def test_getTrainImg_biome_nodata(image_id, site_xy, nlcd, biome2):
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
-    output = utils.point_image_value(
-        openet.lai.landsat.getTrainImg(input_img), xy=site_xy)
-    assert output['biome2'] is None
+# DEADBEEF - This test is only needed if NLCD 11 and 12 aren't mapped to biome 0
+# @pytest.mark.parametrize(
+#     "image_id, xy, nlcd, biome2",
+#     [
+#         [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+#         ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718', [-118.51162, 36.55814], 12, 0],
+#     ]
+# )
+# def test_getTrainImg_biome_nodata(image_id, xy, nlcd, biome2):
+#     input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
+#     output = utils.point_image_value(
+#         openet.lai.landsat.getTrainImg(input_img), xy=xy)
+#     assert output['biome2'] is None
 
 
 # TODO: Write a test to see if maskLST is (or isn't) being called by getTrainImg
@@ -266,71 +265,101 @@ def test_getTrainImg_biome_nodata(image_id, site_xy, nlcd, biome2):
 #     assert False
 
 
-# TODO: Write a test to see if updateMask is called/applied?
-# def test_getTrainImg_update_mask():
-#     assert False
+def test_trainRF():
+    # CM - Get examples of "samples":
+    # sensor = 'LC08'
+    # assetDir = 'users/yanghui/OpenET/LAI_US/train_samples/'
+    # filename = 'LAI_train_samples_' + sensor + '_v10_1_labeled'
+    # train = ee.FeatureCollection(assetDir + filename)
+    # pprint.pprint(train.first().getInfo())
+    # # train = train.filterMetadata('sat_flag', 'equals', 'correct')
+    # # train = ee.Algorithms.If(ee.Number(biome).eq(0), train,
+    # #                          train.filterMetadata('biome2', 'equals', biome))
+    # # samples = ee.FeatureCollection(train)
+
+    # CM - What needs to be in samples to test if trainRF is working?
+    samples = ee.FeatureCollection([
+        ee.Feature(None, {'MCD_LAI': 1.0}),
+    ])
+    features = ['red', 'green', 'nir', 'swir1', 'lat', 'lon', 'NDVI', 'NDWI',
+                'sun_zenith', 'sun_azimuth']
+    output = openet.lai.landsat.trainRF(
+        samples, features, classProperty='MCD_LAI').getInfo()
+    assert output
 
 
-# def test_trainRF():
-#     output = openet.lai.landsat.trainRF(samples, features, classProperty).getInfo()
-#     assert output
-#
-#     # rfRegressor = ee.Classifier.randomForest(numberOfTrees=100,
-#     #                                          minLeafPopulation=20,
-#     #                                          variablesPerSplit=8) \
-#     #                             .setOutputMode('REGRESSION') \
-#     #                             .train(features=samples,
-#     #                                    classProperty='MCD_LAI',
-#     #                                    inputProperties=features)
-#     #
-#     # return rfRegressor
-#
-#
-# def test_getRFModel():
-#     output = openet.lai.landsat.getRFModel(sensor, biome, threshold).getInfo()
-#     assert output
-#
-#     # assetDir = 'users/yanghui/OpenET/LAI_US/train_samples/'
-#     # # change training sample
-#     # filename = 'LAI_train_samples_' + sensor + '_v10_1_labeled'
-#     # train = ee.FeatureCollection(assetDir + filename)
-#     #
-#     # # filter sat_flag
-#     # train = train.filterMetadata('sat_flag', 'equals', 'correct')
-#     #
-#     # # get train sample by biome
-#     # train = ee.Algorithms.If(ee.Number(biome).eq(0), train,
-#     #                          train.filterMetadata('biome2', 'equals', biome))
-#     #
-#     # # percentage of saturated samples to use
-#     # train = ee.FeatureCollection(train)
-#     #
-#     # """
-#     # train = train.filterMetadata('mcd_qa', 'equals',1) \
-#     #              .filterMetadata('random', 'less_than',threshold) \
-#     #              .merge(train.filterMetadata('mcd_qa', 'equals',0))
-#   	# """
-#     #
-#     # # train
-#     # features = ['red', 'green', 'nir', 'swir1', 'lat', 'lon', 'NDVI', 'NDWI',
-#     #             'sun_zenith', 'sun_azimuth']
-#     # rf = trainRF(train, features, 'MCD_LAI')
-#     # return rf
-#
-#
-# def test_getLAIforBiome(image, biome, rf_models):
-#     output = openet.lai.landsat.getLAIforBiome(image, biome, rf_models).getInfo()
-#     assert output
-#
-#     # biome_band = image.select('biome2')
-#     # model = rf_models.get(ee.String(biome))
-#     # lai = image.updateMask(biome_band.select('biome2').eq(ee.Image.constant(ee.Number.parse(biome)))) \
-#     #            .classify(model, 'LAI')
-#     # return lai
-#
-#
+# CM - How do we test if the classifier is correct?
+#   Currently it is only testing if something is returned
+# CM - How do we test if the biome parameter is working?
+@pytest.mark.parametrize(
+    "sensor, biome",
+    [
+        ['LC08', 0],
+        ['LE07', 0],
+        ['LT05', 0],
+    ]
+)
+def test_getRFModel_sensor(sensor, biome):
+    output = openet.lai.landsat.getRFModel(sensor, biome, threshold=1).getInfo()
+    assert output
+
+
+# CM - Invalid sensor values will/should raise an EE exception
+#   Landsat 4 is not currently supported
+def test_getRFModel_sensor_exception(sensor='LT04', biome=0):
+    with pytest.raises(ee.ee_exception.EEException) as e_info:
+        openet.lai.landsat.getRFModel(sensor, biome, threshold=1).getInfo()
+
+
+# TODO: Test that here is a separate classfier for each biome
+#   A test on the sensor probably isn't needed since that is passed through
+def test_trainModels():
+    output = openet.lai.landsat.trainModels(sensor='LE07', nonveg=True).getInfo()
+    # pprint.pprint(output.keys())
+    assert output
+
+
+def test_trainModels_nonveg_true():
+    output = openet.lai.landsat.trainModels(sensor='LC08', nonveg=True).getInfo()
+    assert '0' in output.keys()
+
+
+def test_trainModels_nonveg_false():
+    output = openet.lai.landsat.trainModels(sensor='LC08', nonveg=False).getInfo()
+    assert '0' not in output.keys()
+
+
+@pytest.mark.parametrize(
+    "image_id, xy, biome, expected",
+    [
+        # CM - Biomes are string values (from dictionary keys)
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '0', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '1', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '2', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '3', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '4', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '5', None],
+        [LANDSAT8_IMAGE_ID, TEST_POINT, '6', 4.3203],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '7', None],
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, '8', None],
+    ]
+)
+def test_getLAIforBiome_point_values(image_id, xy, biome, expected, tol=0.0001):
+    input_img = openet.lai.landsat.getTrainImg(
+        openet.lai.landsat.renameLandsat(ee.Image(image_id)))
+    sensor = LANDSAT8_IMAGE_ID.split('/')[-1][:4]
+    rf_models = openet.lai.landsat.trainModels(sensor, nonveg=True)
+    output = utils.point_image_value(
+        openet.lai.landsat.getLAIforBiome(input_img, biome, rf_models), xy=xy)
+    assert abs(output['LAI'] - expected) <= tol
+
+
 # def test_getLAI():
-#     output = openet.lai.landsat.getLAI(image, rf_models).getInfo()
+#     input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+#     sensor = LANDSAT8_IMAGE_ID.split('/')[-1][:4]
+#     rf_models = openet.lai.landsat.trainModels(sensor, nonveg=True)
+#     output = openet.lai.landsat.getLAI(input_img, rf_models).getInfo()
+#     pprint.pprint(output)
 #     assert output
 #
 #     # # Add necessary bands to image
@@ -347,32 +376,19 @@ def test_getTrainImg_biome_nodata(image_id, site_xy, nlcd, biome2):
 #     #     .set('system:time_start',image.get('system:time_start'))
 #     #
 #     # return lai_img
-#
-#
-# def test_trainModels():
-#     output = openet.lai.landsat.trainModels(sensor, nonveg).getInfo()
-#     assert output
-#
-#     # biomes = [1, 2, 3, 4, 5, 6, 7, 8]
-#     # biomes_str = ['1', '2', '3', '4', '5', '6', '7', '8']
-#     #
-#     # if nonveg:
-#     #     biomes = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-#     #     biomes_str = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
-#     #
-#     # # Get models for each biome
-#     # rf_models = ee.List(biomes).map(lambda biome: getRFModel(sensor, biome, 1))
-#     # rf_models = ee.Dictionary.fromLists(biomes_str, rf_models)
-#     #
-#     # return rf_models
-#
-#
-# def test_getLAIImage():
-#     output = openet.lai.landsat.getLAIImage(image, sensor, nonveg=1).getInfo()
-#     assert output
-#
-#     # # train random forest models
-#     # # image = renameLandsat(image)
-#     # rf_models = trainModels(sensor, nonveg)
-#     # laiImg = getLAI(image, rf_models)
-#     # return ee.Image(laiImg).clip(image.geometry())
+
+
+def test_getLAIImage_band_name():
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+    output = openet.lai.landsat.getLAIImage(input_img, 'LC08', nonveg=1)\
+        .bandNames().getInfo()
+    assert set(output) == {'LAI'}
+
+
+def test_getLAIImage_point_values(image_id=LANDSAT8_IMAGE_ID, xy=TEST_POINT,
+                                  expected=4.3203, tol=0.0001):
+    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
+    sensor = image_id.split('/')[-1][:4]
+    output = utils.point_image_value(
+        openet.lai.landsat.getLAIImage(input_img, sensor, nonveg=1), xy=xy)
+    assert abs(output['LAI'] - expected) <= tol

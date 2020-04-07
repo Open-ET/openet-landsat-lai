@@ -1,6 +1,9 @@
 import ee
 
 
+# TODO: Define LandsatSR and LandsatTOA (and maybe Landsat) classes
+
+
 def getLAIImage(image, sensor, nonveg):
     """
     Main Algorithm to computer LAI for a Landsat image
@@ -12,69 +15,69 @@ def getLAIImage(image, sensor, nonveg):
     # image = renameLandsat(image)
     rf_models = trainModels(sensor, nonveg)
     laiImg = getLAI(image, rf_models)
+
     # TODO: Test removing final clip call
+    #   It will currently cause an unbounded export error
     return ee.Image(laiImg).clip(image.geometry())
+    # return ee.Image(laiImg)
 
 
 def trainModels(sensor, nonveg):
     """
     Function that trains biome-specific RF models for a specific sensor
     Args:
-        sensor: String {'LT05', 'LE07', 'LC08'}
-        nonveg: whether LAI is computed for non-vegetation pixels
+        sensor: str {'LT05', 'LE07', 'LC08'}
+        nonveg: bool, if True compute LAI for non-vegetation pixels
     """
-
-    biomes = [1, 2, 3, 4, 5, 6, 7, 8]
-    biomes_str = ['1', '2', '3', '4', '5', '6', '7', '8']
 
     if nonveg:
         biomes = [0, 1, 2, 3, 4, 5, 6, 7, 8]
-        biomes_str = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
+        # biomes_str = ['0', '1', '2', '3', '4', '5', '6', '7', '8']
+    else:
+        biomes = [1, 2, 3, 4, 5, 6, 7, 8]
+        # biomes_str = ['1', '2', '3', '4', '5', '6', '7', '8']
 
     # Get models for each biome
-    # CM - The threshold value of 1 isn't used in getRFModel()
-    rf_models = ee.List(biomes).map(lambda biome: getRFModel(sensor, biome, 1))
-    rf_models = ee.Dictionary.fromLists(biomes_str, rf_models)
+    # CM - Testing defining rf_modelsas a client side dictionary of classifiers
+    rf_models = {biome: getRFModel(sensor, biome) for biome in biomes}
+
+    # rf_models = ee.List(biomes).map(lambda biome: getRFModel(sensor, biome))
+    # rf_models = ee.Dictionary.fromLists(biomes_str, rf_models)
 
     return rf_models
 
 
-# CM - The "threshold" is not used in the function?
-def getRFModel(sensor, biome, threshold=1):
+def getRFModel(sensor, biome):
     """
     Wrapper function to train RF model given biome and sensor
-    "sensor" needs to be a "String"; it cannot be an EE computed object
+    Args:
+        sensor: str {'LT05', 'LE07', 'LC08'} (cannot be an EE object)
+        biome: int
     """
 
     assetDir = 'users/yanghui/OpenET/LAI_US/train_samples/'
-    # change training sample
+    # Change training sample based on sensor
     filename = 'LAI_train_samples_' + sensor + '_v10_1_labeled'
-    train = ee.FeatureCollection(assetDir + filename)
 
-    # filter sat_flag
-    train = train.filterMetadata('sat_flag', 'equals', 'correct')
+    training_coll = ee.FeatureCollection(assetDir + filename) \
+        .filterMetadata('sat_flag', 'equals', 'correct')
 
-    # get train sample by biome
-    train = ee.Algorithms.If(ee.Number(biome).eq(0), train,
-                             train.filterMetadata('biome2', 'equals', biome))
+    # Get train sample by biome
+    if biome > 0:
+        training_coll = training_coll.filterMetadata('biome2', 'equals', biome)
 
-    # percentage of saturated samples to use
-    train = ee.FeatureCollection(train)
+    # TODO: Move trainRF code to this function
+    #   It doesn't seem that useful to have it separate
+    rf = trainRF(
+        samples=training_coll,
+        inputProperties=['red', 'green', 'nir', 'swir1', 'lat', 'lon',
+                         'NDVI', 'NDWI', 'sun_zenith', 'sun_azimuth'],
+        classProperty='MCD_LAI')
 
-    """
-    train = train.filterMetadata('mcd_qa', 'equals',1) \
-                 .filterMetadata('random', 'less_than',threshold) \
-                 .merge(train.filterMetadata('mcd_qa', 'equals',0))
-  	"""
-
-    # train
-    features = ['red', 'green', 'nir', 'swir1', 'lat', 'lon', 'NDVI', 'NDWI',
-                'sun_zenith', 'sun_azimuth']
-    rf = trainRF(train, features, classProperty='MCD_LAI')
     return rf
 
 
-def trainRF(samples, features, classProperty='MCD_LAI'):
+def trainRF(samples, inputProperties, classProperty='MCD_LAI'):
     """
     Function that trains a Random Forest regressor
     """
@@ -84,7 +87,7 @@ def trainRF(samples, features, classProperty='MCD_LAI'):
                                 .setOutputMode('REGRESSION') \
                                 .train(features=samples,
                                        classProperty=classProperty,
-                                       inputProperties=features)
+                                       inputProperties=inputProperties)
 
     return rfRegressor
 
@@ -97,42 +100,38 @@ def getLAI(image, rf_models):
     # Add necessary bands to image
     image = getTrainImg(image)
 
-    # TODO: Add a standard mask band to the image in getTrainImg
-    mask_prev = image.select([0]).mask()
+    # TODO: Test building as images (not collection) to preserve input image
 
     # Apply regressor for each biome
-    biomes = rf_models.keys()
-    lai_coll = ee.List(biomes).map(lambda b: getLAIforBiome(image, b, rf_models))
-    lai_coll = ee.ImageCollection(lai_coll)
+    # CM - Testing defining rf_models as a client side dictionary of classifiers
+    lai_coll = ee.ImageCollection([
+        getLAIforBiome(image, biom, rf_model)
+        for biom, rf_model in rf_models.items()])
+    # biomes = rf_models.keys()
+    # lai_coll = ee.List(biomes).map(lambda b: getLAIforBiome(image, b, rf_models))
+    # lai_coll = ee.ImageCollection(lai_coll)
 
     # Combine LAI of all biomes
+    # TODO: Test using a mosaic reducer
     lai_img = ee.Image(lai_coll.mean().copyProperties(image)) \
-        .updateMask(mask_prev) \
-        .set('system:time_start',image.get('system:time_start'))
+        .updateMask(image.select(['mask'])) \
+        .set('system:time_start', image.get('system:time_start'))
 
     return lai_img
 
 
-# TODO: Change "image" to something else that indicates it has training bands
-#   Maybe "trained_img"?
-def getLAIforBiome(image, biome, rf_models):
+# TODO: Change name of "image" to something that indicates it has training bands
+def getLAIforBiome(image, biome, rf_model):
     """
     Function that computes LAI for an input Landsat image and Random Forest models
     Args:
-        image: must have training bands added
-        biome: string
-        rf_models:
+        image: ee.Image, must have training bands added
+        biome: int
+        rf_model: ee.Classifier
     """
-    biome_band = image.select('biome2')
-    model = rf_models.get(ee.String(biome))
-    lai = image.updateMask(biome_band.select('biome2').eq(ee.Image.constant(ee.Number.parse(biome)))) \
-               .classify(model, 'LAI')
-    # TODO: Test if the comparison can be make just to the number
-    #   (instead of the ee.Image.constant())
-    # lai = image
-    #     .updateMask(biome_band.select('biome2').eq(ee.Number.parse(biome))) \
-    #     .classify(model, 'LAI')
-    return lai
+    biom_lai = image.updateMask(image.select('biome2').eq(ee.Number(biome))) \
+        .classify(rf_model, 'LAI')
+    return biom_lai
 
 
 def getTrainImg(image):
@@ -172,7 +171,7 @@ def getTrainImg(image):
     # Map NLCD codes to biomes
     # CM - Added NLCD codes 11 and 12
     # CM - Switched from lists to a dictionary to improve readability
-    biom_remap = {
+    nlcd_biom_remap = {
         11: 0, 12: 0,
         21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
         41: 1, 42: 2, 43: 3, 52: 4,
@@ -180,40 +179,46 @@ def getTrainImg(image):
     }
     # fromList = [21, 22, 23, 24, 31, 41, 42, 43, 52, 71, 81, 82, 90, 95]
     # toList = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8]
-    biom_img = nlcd_img.remap(*zip(*biom_remap.items()) )
-    # biom_img = nlcd_img.remap(list(biom_remap.keys()), list(biom_remap.values()))
+    biom_img = nlcd_img.remap(*zip(*nlcd_biom_remap.items()) )
+    # biom_img = nlcd_img.remap(
+    #     list(nlcd_biom_remap.keys()), list(nlcd_biom_remap.values()))
 
     # Add other bands
 
     # CM - Map all bands to mask image to avoid clip or updateMask calls
     mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
-    image = image.addBands(mask_img.add(nlcd_img).rename(['nlcd'])) \
-        .addBands(mask_img.add(biom_img).rename('biome2')) \
+    image = image.addBands(mask_img.add(biom_img).rename('biome2')) \
         .addBands(mask_img.add(ee.Image.pixelLonLat().select(['longitude']))
                     .rename(['lon'])) \
         .addBands(mask_img.add(ee.Image.pixelLonLat().select(['latitude']))
                     .rename(['lat'])) \
-        .addBands(mask_img.add(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
-        .addBands(mask_img.add(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
         .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
                     .rename(['sun_zenith'])) \
         .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
-                    .rename(['sun_azimuth']))
+                    .rename(['sun_azimuth'])) \
+        .addBands(mask_img.add(1))
+        # CM - NLCD, path, and row are not currently, commenting out for now
+        # .addBands(mask_img.add(nlcd_img).rename(['nlcd'])) \
+        # .addBands(mask_img.add(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
+        # .addBands(mask_img.add(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
         # .addBands(ee.Image.constant(ft.get('year')).rename(['year'])))
         # .addBands(ee.Image.constant(ee.Number(ft.get('doy'))).rename(['DOY'])))
 
     # # CM - Test adding all bands directly and the calling updateMask to clip
-    # image = image.addBands(nlcd_img.rename(['nlcd'])) \
+    # mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
+    # image = image.addBands(biom_img.rename('biome2')) \
     #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon'])) \
     #     .addBands(ee.Image.pixelLonLat().select(['latitude']).rename(['lat'])) \
-    #     .addBands(ee.Image.constant(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
-    #     .addBands(ee.Image.constant(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
     #     .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
     #               .rename(['sun_zenith'])) \
     #     .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
     #               .rename(['sun_azimuth'])) \
-    #     .addBands(biom_img.rename('biome2')) \
+    #     .addBands(mask_img.add(1))
     #     .updateMask(mask_img.add(1))
+    #     # CM - NLCD, path, and row are not currently, commenting out for now
+    #     # .addBands(nlcd_img.rename(['nlcd'])) \
+    #     # .addBands(ee.Image.constant(ee.Number(image.get('WRS_PATH'))).rename(['path'])) \
+    #     # .addBands(ee.Image.constant(ee.Number(image.get('WRS_ROW'))).rename(['row'])) \
     #     # .addBands(ee.Image.constant(ft.get('year')).rename(['year'])))
     #     # .addBands(ee.Image.constant(ee.Number(ft.get('doy'))).rename(['DOY'])))
 
@@ -228,15 +233,19 @@ def getVIs(image):
     """
     Compute VIs for an Landsat image
     """
-    SR = image.expression('float(b("nir")) / b("red")')
-    NDVI = image.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
+    NDVI = image.expression(
+        'float((b("nir") - b("red"))) / (b("nir") + b("red"))')
     NDWI = image.expression(
         'float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
 
+    # CM - SR is not currently used, commenting out for now
+    # SR = image.expression('float(b("nir")) / b("red")')
+
+    # CM - EVI is not currently used, commenting out for now
     # CM - This equation is only correct for the raw scaled (0-10000) SR images
-    EVI = image.expression(
-        '2.5 * float((b("nir") - b("red"))) / '
-        '(b("nir") + 6*b("red") - 7.5*float(b("blue")) + 10000)')
+    # EVI = image.expression(
+    #     '2.5 * float((b("nir") - b("red"))) / '
+    #     '(b("nir") + 6*b("red") - 7.5*float(b("blue")) + 10000)')
     # CM - This equation should be used for the unscaled (0-1) SR images
     # EVI = image.expression(
     #     '2.5 * float((b("nir") - b("red"))) / '
@@ -256,41 +265,16 @@ def getVIs(image):
     #     '1.5 * (1.2 * float(b("nir") - b("green")) - 2.5 * float(b("red") - b("green"))) / '
     #     'sqrt((2*b("nir")+10000)*(2*b("nir")+10000) - (6*b("nir") - 5*sqrt(float(b("nir"))))-5000)')
 
-    return image.addBands(SR.select([0], ['SR'])) \
-                .addBands(NDVI.select([0], ['NDVI'])) \
-                .addBands(NDWI.select([0], ['NDWI'])) \
-                .addBands(EVI.select([0], ['EVI']))
+    return image.addBands(NDVI.select([0], ['NDVI'])) \
+                .addBands(NDWI.select([0], ['NDWI']))
+                # .addBands(EVI.select([0], ['EVI']))
+                # .addBands(SR.select([0], ['SR'])) \
                 # .addBands(GCI.select([0], ['GCI']))
                 # .addBands(EVI2.select([0], ['EVI2']))
                 # .addBands(OSAVI.select([0], ['OSAVI']))
                 # .addBands(NDWI2.select([0], ['NDWI2']))
                 # .addBands(MSR.select([0], ['MSR']))
                 # .addBands(MTVI2.select([0], ['MTVI2']))
-
-
-def maskLST(image):
-    """
-    Function that masks a Landsat image based on the QA band
-    """
-    pixelQA = image.select('pixel_qa')
-    cloud = getQABits(pixelQA, 1, 1, 'clear')
-    # CM - Testing .eq(1) won't work for multibit values like cloud confidence
-    #   This should probably be .gte(1)
-    return image.updateMask(cloud.eq(1))
-
-
-def getQABits(image, start, end, newName):
-    """
-    Function that returns an image containing just the specified QA bits.
-    """
-    # Compute the bits we need to extract.
-    pattern = 0
-    for i in range(start, end + 1):
-         pattern = pattern + 2 ** i
-
-    # Return a single band image of the extracted QA bits, giving the band
-    # a new name.
-    return image.select([0], [newName]).bitwiseAnd(pattern).rightShift(start)
 
 
 def renameLandsat(image):
@@ -307,9 +291,37 @@ def renameLandsat(image):
     return image.select(from_list, to_list)
 
 
-def setDate(image):
-    """
-    Function that adds a "date" property to an image in format "YYYYmmdd"
-    """
-    image_date = ee.Date(image.get('system:time_start'))
-    return image.set('date', image_date.format('YYYYMMdd'))
+# DEADBEEF - Function is not used anymore
+# def maskLST(image):
+#     """
+#     Function that masks a Landsat image based on the QA band
+#     """
+#     pixelQA = image.select('pixel_qa')
+#     cloud = getQABits(pixelQA, 1, 1, 'clear')
+#     # CM - Testing .eq(1) won't work for multibit values like cloud confidence
+#     #   This should probably be .gte(1)
+#     return image.updateMask(cloud.eq(1))
+
+
+# DEADBEEF - Function is not used anymore
+# def getQABits(image, start, end, newName):
+#     """
+#     Function that returns an image containing just the specified QA bits.
+#     """
+#     # Compute the bits we need to extract.
+#     pattern = 0
+#     for i in range(start, end + 1):
+#          pattern = pattern + 2 ** i
+#
+#     # Return a single band image of the extracted QA bits, giving the band
+#     # a new name.
+#     return image.select([0], [newName]).bitwiseAnd(pattern).rightShift(start)
+
+
+# DEADBEEF - Function is not used anymore
+# def setDate(image):
+#     """
+#     Function that adds a "date" property to an image in format "YYYYmmdd"
+#     """
+#     image_date = ee.Date(image.get('system:time_start'))
+#     return image.set('date', image_date.format('YYYYMMdd'))

@@ -7,12 +7,6 @@ import time
 import ee
 
 
-def getAffineTransform(image):
-    projection = image.projection()
-    json = ee.Dictionary(ee.Algorithms.Describe(projection))
-    return ee.List(json.get('transform'))
-
-
 def arg_valid_file(file_path):
     """Argparse specific function for testing if file exists
 

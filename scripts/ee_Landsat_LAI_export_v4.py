@@ -161,7 +161,7 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
                 ee.Algorithms.Describe(image_proj)).get('transform'))
 
             # Compute LAI image
-            output_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1)\
+            output_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1)
 
             # Copied properties from scene export tool
             # Many of these are so the tasks can be tracked in the datastore
@@ -172,7 +172,7 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
                 'lai_version': openet.lai.__version__,
                 'model_name': 'LAI',
                 'model_version': openet.lai.__version__,
-                # 'scale_factor': 1.0 / scale_factor,
+                'scale_factor': 1.0 / scale_factor,
                 'scene_id': landsat_id,
                 'tool_name': TOOL_NAME,
                 'tool_version': TOOL_VERSION,
@@ -234,7 +234,7 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
             # input('ENTER')
 
 
-# TODO: Test is DisALEXI Collection class could be used instead
+# TODO: Test if DisALEXI Collection class could be used instead
 def getLandsatSR(start_date, end_date, path, row, cloud_cover_max=70):
     """
     Get Landsat SR image collection

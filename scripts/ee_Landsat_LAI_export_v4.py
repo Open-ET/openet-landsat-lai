@@ -64,6 +64,9 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
     cloud_cover_max = 70
     log_tasks = True
     clip_ocean_flag = True
+    scale_factor = 10000
+    output_type = 'uint16'
+    model_name = 'LAI'
 
 
     logging.info('\nInitializing Earth Engine')
@@ -108,9 +111,6 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
             .sort('system:time_start') \
             .aggregate_array('system:id') \
             .getInfo()
-        # pprint.pprint(input_asset_id_list)
-        # input('ENTER')
-
 
         # Process each Landsat image separately
         for input_asset_id in input_asset_id_list:
@@ -170,7 +170,8 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
                 'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
                 'image_id': input_asset_id,
                 'lai_version': openet.lai.__version__,
-                # 'model_name': 'LAI',
+                'model_name': 'LAI',
+                'model_version': openet.lai.__version__,
                 # 'scale_factor': 1.0 / scale_factor,
                 'scene_id': landsat_id,
                 'tool_name': TOOL_NAME,
@@ -180,14 +181,13 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
             }
             output_img = output_img.set(properties)
 
-            # TODO: Long term we may want to save as scaled integers to save space
-            # if scale_factor > 1:
-            #     if output_type == 'int16':
-            #         output_img = output_img.multiply(scale_factor).round()\
-            #             .clamp(-32768, 32767).int16()
-            #     elif output_type == 'uint16':
-            #         output_img = output_img.multiply(scale_factor).round()\
-            #             .clamp(0, 65536).uint16()
+            if scale_factor > 1:
+                if output_type == 'int16':
+                    output_img = output_img.multiply(scale_factor).round()\
+                        .clamp(-32768, 32767).int16()
+                elif output_type == 'uint16':
+                    output_img = output_img.multiply(scale_factor).round()\
+                        .clamp(0, 65536).uint16()
 
             if clip_ocean_flag:
                 output_img = output_img \
@@ -218,8 +218,7 @@ def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
                     #     .strftime('%Y-%m-%d')
                     task_obj['index'] = properties.pop('wrs2_tile')
                     # task_obj['wrs2_tile'] = properties.pop('wrs2_tile')
-                    task_obj['model_name'] = 'LAI'
-                    # task_obj['model_name'] = properties.pop('model_name')
+                    task_obj['model_name'] = properties.pop('model_name')
                     # task_obj['model_version'] = properties.pop('model_version')
                     task_obj['runtime'] = 0
                     task_obj['start_timestamp_ms'] = 0

@@ -195,7 +195,7 @@ def trainRF(samples, features, classProperty):
     return rfRegressor
 
 
-def getRFModel(sensor, biome, threshold):
+def getRFModel(sensor, biome):
     """
     Wrapper function to train RF model given biome and sensor
     "sensor" needs to be a "String"; it cannot be an EE computed object
@@ -214,12 +214,6 @@ def getRFModel(sensor, biome, threshold):
   
     # percentage of saturated samples to use
     train = ee.FeatureCollection(train)
-
-    """
-    train = train.filterMetadata('mcd_qa','equals',1) \
-                 .filterMetadata('random','less_than',threshold) \
-                 .merge(train.filterMetadata('mcd_qa','equals',0))
-  	"""
 
     # train
     features = ['red','green','nir','swir1','lat','lon','NDVI','NDWI','sun_zenith','sun_azimuth']
@@ -318,7 +312,7 @@ def trainModels(sensor, nonveg):
         biomes_str = ['0','1','2','3','4','5','6','7','8']
   
     # Get models for each biome
-    rf_models = ee.List(biomes).map(lambda biome: getRFModel(sensor, biome, 1))
+    rf_models = ee.List(biomes).map(lambda biome: getRFModel(sensor, biome))
     rf_models = ee.Dictionary.fromLists(biomes_str, rf_models)
  
     return rf_models

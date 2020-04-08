@@ -18,7 +18,7 @@ TOOL_NAME = 'ee_Landsat_LAI_export'
 TOOL_VERSION = 'v4'
 
 
-def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
+def main(start_dt, end_dt, overwrite_flag=False, gee_key_file=None):
     """Export Landsat LAI images
 
     Parameters
@@ -41,23 +41,29 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     """
     logging.info('\nExport Landsat LAI images')
 
+    start_date = start_dt.strftime('%Y-%m-%d')
+    end_dt = end_dt + datetime.timedelta(days=1)
+    end_date = end_dt.strftime('%Y-%m-%d')
+
     # CM - Hard coding input parameters for now
-    wrs2_tile_list = [
-        'p044r032', 'p043r033', 'p042r034',
-        'p044r033', 'p043r034', 'p042r035', 'p044r034', 'p043r035', 'p042r036',
-        'p041r035', 'p041r036',
-        'p045r032', 'p045r033',
-    ]
+    # wrs2_tile_list = ['p044r034']  # openet-api-gee
+    # wrs2_tile_list = ['p043r035']  # openet-dri-gee
+    wrs2_tile_list = ['p042r036']   # openet-gee
+    # wrs2_tile_list = [
+    #     'p044r032', 'p043r033', 'p042r034',
+    #     'p044r033', 'p043r034', 'p042r035', 'p044r034', 'p043r035', 'p042r036',
+    #     'p041r035', 'p041r036',
+    #     'p045r032', 'p045r033',
+    # ]
     version = openet.lai.__version__.replace('.', 'p')
     coll_id = 'projects/openet/lai/landsat/scene'
-
-    start_date = '2015-11-01'
-    end_date = '2020-02-01'
     # gee_key_file = None
-    gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
+    # gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
     # gee_key_file = '/Users/mortonc/Projects/keys/openet-dri-gee.json'
+    gee_key_file = '/Users/mortonc/Projects/keys/openet-gee.json'
     cloud_cover_max = 70
     log_tasks = True
+    clip_ocean_flag = True
 
 
     logging.info('\nInitializing Earth Engine')
@@ -172,7 +178,7 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
                 'wrs2_tile': 'p{}r{}'.format(
                     landsat_id.split('_')[1][:3], landsat_id.split('_')[1][3:]),
             }
-            output_img.set(properties)
+            output_img = output_img.set(properties)
 
             # TODO: Long term we may want to save as scaled integers to save space
             # if scale_factor > 1:
@@ -183,10 +189,9 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
             #         output_img = output_img.multiply(scale_factor).round()\
             #             .clamp(0, 65536).uint16()
 
-            # TODO: Long term we may want to clip ocean areas similar to scene export
-            # if clip_ocean_flag:
-            #     output_img = output_img\
-            #         .updateMask(ee.Image('projects/openet/ocean_mask'))
+            if clip_ocean_flag:
+                output_img = output_img \
+                    .updateMask(ee.Image('projects/openet/ocean_mask'))
 
             # Start export
             task = ee.batch.Export.image.toAsset(

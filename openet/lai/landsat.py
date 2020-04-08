@@ -6,10 +6,10 @@ import ee
 
 def getLAIImage(image, sensor, nonveg):
     """
-    Main Algorithm to computer LAI for a Landsat image
+    Main Algorithm to compute LAI for a Landsat image
     Args:
-        image:
-        sensor: needs to be specified as a String ('LT05', 'LE07', 'LC08')
+        image: ee.Image
+        sensor: str {'LT05', 'LE07', 'LC08'} (cannot be an EE object)
         nonveg: True if want to compute LAI for non-vegetation pixels
     """
     # Add necessary bands to image

@@ -67,6 +67,7 @@ def test_getVIs_constant_values(blue, red, nir, swir1, ndvi, ndwi, evi, sr,
     "image_id, xy, ndvi, ndwi, evi, sr",
     [
         [LANDSAT8_IMAGE_ID, TEST_POINT, 0.8744, 0.5043, 0.5301, 14.9227],
+        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], -0.5294, 0.4328, 0, 0],  # Folsom Lake
     ]
 )
 def test_getVIs_point_values(image_id, xy, ndvi, ndwi, evi, sr, tol=0.0001):
@@ -234,8 +235,14 @@ def test_getLAIImage_band_name():
     assert set(output) == {'LAI'}
 
 
-def test_getLAIImage_point_values(image_id=LANDSAT8_IMAGE_ID, xy=TEST_POINT,
-                                  expected=4.3203, tol=0.0001):
+@pytest.mark.parametrize(
+    "image_id, xy, expected",
+    [
+        [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3203],
+        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 0],   # Folsom Lake
+    ]
+)
+def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
     input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
     sensor = image_id.split('/')[-1][:4]
     output = utils.point_image_value(

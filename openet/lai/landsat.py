@@ -34,7 +34,7 @@ def getLAIImage(image, sensor, nonveg):
     # TODO: This should probably be in a separate function
     # TODO: Check what water_mask the other models are using (PTJPL?)
     water_mask = train_img.select('NDVI').lt(0) \
-        .And(train_img.select('nir').lt(0.1))
+        .And(train_img.select('nir').lt(1000))
     # water_mask = train_img.select('NDVI').lt(0) \
     #     .And(train_img.select('NDWI').gt(0))
     lai_img = lai_img.where(water_mask, 0)

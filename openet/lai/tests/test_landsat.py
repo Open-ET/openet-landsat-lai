@@ -196,26 +196,41 @@ def test_getRFModel_sensor(sensor, biome):
 #     assert output
 
 
-# CM - Invalid sensor values will/should raise an EE exception
-#   Landsat 4 is not currently supported
-def test_getRFModel_sensor_exception(sensor='LT04', biome=0):
-    with pytest.raises(ee.ee_exception.EEException) as e_info:
-        openet.lai.landsat.getRFModel(sensor, biome).getInfo()
+# CM - How should we test if an unsupported sensor value is passed
+#   There are no Landsat 4 features in the collection
+#   We could try writing the feature collection size as a property?
+# def test_getRFModel_sensor_unsupported(sensor='LT04', biome=0):
+#     output = openet.lai.landsat.getRFModel(sensor, biome).getInfo()
+#     pprint.pprint(output)
+#     assert False
 
 
 @pytest.mark.parametrize(
     "image_id, xy, biome, expected",
     [
-        # CM - Biomes are string values (from dictionary keys)
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 0, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 1, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 2, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 3, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 4, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 5, None],
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 6, 4.3203],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 7, None],
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 8, None],
+        [LANDSAT8_IMAGE_ID, TEST_POINT, 6, 4.3485],  # NLCD 82
+        # Other random points in test image
+        [LANDSAT8_IMAGE_ID, [-121.14450, 38.72050], 0, 0.4161],  # NLCD 11 (Folsom Lake)
+        [LANDSAT8_IMAGE_ID, [-120.81146, 38.82813], 1, 1.2469],  # NLCD 41
+        [LANDSAT8_IMAGE_ID, [-120.77515, 38.81689], 2, 5.1899],  # NLCD 42
+        [LANDSAT8_IMAGE_ID, [-120.76897, 38.82505], 3, 5.2173],  # NLCD 43
+        [LANDSAT8_IMAGE_ID, [-120.79558, 38.81790], 4, 2.0552],  # NLCD 52
+        [LANDSAT8_IMAGE_ID, [-121.42478, 38.73954], 5, 0.4451],  # NLCD 71
+        [LANDSAT8_IMAGE_ID, [-121.43285, 38.73834], 5, 0.4270],  # NLCD 81
+        [LANDSAT8_IMAGE_ID, [-121.25980, 38.89904], 7, 5.1384],  # NLCD 90
+        [LANDSAT8_IMAGE_ID, [-120.63588, 38.90885], 8, 5.15185], # NLCD 95
+        # DEADBEEF - Test values for old training collection and non-smile classifier
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, 6, 4.3203],  # NLCD 82
+        # # Other random points in test image
+        # [LANDSAT8_IMAGE_ID, [-121.14450, 38.72050], 0, 0.5066],  # Folsom Lake
+        # [LANDSAT8_IMAGE_ID, [-120.81146, 38.82813], 1, 1.2458],  # NLCD 41
+        # [LANDSAT8_IMAGE_ID, [-120.77515, 38.81689], 2, 5.2606],  # NLCD 42
+        # [LANDSAT8_IMAGE_ID, [-120.76897, 38.82505], 3, 5.2764],  # NLCD 43
+        # [LANDSAT8_IMAGE_ID, [-120.79558, 38.81790], 4, 2.0643],  # NLCD 52
+        # [LANDSAT8_IMAGE_ID, [-121.42478, 38.73954], 5, 0.4459],  # NLCD 71
+        # [LANDSAT8_IMAGE_ID, [-121.43285, 38.73834], 5, 0.4257],  # NLCD 81
+        # [LANDSAT8_IMAGE_ID, [-121.25980, 38.89904], 7, 5.1061],  # NLCD 90
+        # [LANDSAT8_IMAGE_ID, [-120.63588, 38.90885], 8, 5.1012],  # NLCD 95
     ]
 )
 def test_getLAIforBiome_point_values(image_id, xy, biome, expected, tol=0.0001):
@@ -238,7 +253,8 @@ def test_getLAIImage_band_name():
 @pytest.mark.parametrize(
     "image_id, xy, expected",
     [
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3203],
+        [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3485], # smileRandomForest, new coll
+        # [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3203], # randomForest, old collection
         [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 0],   # Folsom Lake
     ]
 )

@@ -48,16 +48,23 @@ def getRFModel(sensor, biome):
     """
     Wrapper function to train RF model given biome and sensor
     Args:
-        sensor: str {'LT05', 'LE07', 'LC08'} (cannot be an EE object)
-        biome: int
+        sensor: str, ee.String
+        biome: int, ee.Number
     """
 
-    assetDir = 'users/yanghui/OpenET/LAI_US/train_samples/'
-    # Change training sample based on sensor
-    filename = 'LAI_train_samples_' + sensor + '_v10_1_labeled'
+    # CM - The "projects/earthengine-legacy/assets/" probably isn't needed
+    training_coll_id = 'projects/earthengine-legacy/assets/' \
+                       'projects/openet/lai/training/' \
+                       'LAI_train_sample_all_v10_1_final'
+    training_coll = ee.FeatureCollection(training_coll_id) \
+        .filterMetadata('sensor', 'equals', sensor)
 
-    training_coll = ee.FeatureCollection(assetDir + filename) \
-        .filterMetadata('sat_flag', 'equals', 'correct')
+    # DEADBEEF
+    # training_coll_id = 'users/yanghui/OpenET/LAI_US/train_samples/' \
+    #                    'LAI_train_samples_' + sensor + '_v10_1_labeled'
+    # training_coll = ee.FeatureCollection(training_coll_id) \
+    #     .filterMetadata('sat_flag', 'equals', 'correct')
+    # #     .sort('MCD_LAI')
 
     # Get train sample by biome
     if biome > 0:
@@ -66,9 +73,9 @@ def getRFModel(sensor, biome):
     inputProperties = ['red', 'green', 'nir', 'swir1', 'lat', 'lon',
                        'NDVI', 'NDWI', 'sun_zenith', 'sun_azimuth']
 
-    return ee.Classifier.randomForest(numberOfTrees=100,
-                                      minLeafPopulation=20,
-                                      variablesPerSplit=8) \
+    return ee.Classifier.smileRandomForest(numberOfTrees=100,
+                                           minLeafPopulation=20,
+                                           variablesPerSplit=8) \
                         .setOutputMode('REGRESSION') \
                         .train(features=training_coll,
                                classProperty='MCD_LAI',

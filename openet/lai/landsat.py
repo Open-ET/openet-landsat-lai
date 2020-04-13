@@ -64,7 +64,6 @@ def getRFModel(sensor, biome):
     #                    'LAI_train_samples_' + sensor + '_v10_1_labeled'
     # training_coll = ee.FeatureCollection(training_coll_id) \
     #     .filterMetadata('sat_flag', 'equals', 'correct')
-    # #     .sort('MCD_LAI')
 
     # Get train sample by biome
     if biome > 0:

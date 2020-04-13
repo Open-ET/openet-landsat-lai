@@ -1,41 +1,7 @@
-import argparse
-import datetime
 import logging
-import os
 import time
 
 import ee
-
-
-def arg_valid_file(file_path):
-    """Argparse specific function for testing if file exists
-
-    Convert relative paths to absolute paths
-    """
-    if os.path.isfile(os.path.abspath(os.path.realpath(file_path))):
-        return os.path.abspath(os.path.realpath(file_path))
-        # return file_path
-    else:
-        raise argparse.ArgumentTypeError('{} does not exist'.format(file_path))
-
-
-def arg_valid_date(input_date):
-    """Check that a date string is ISO format (YYYY-MM-DD)
-
-    Parameters
-    ----------
-    input_date : string
-
-    Returns
-    -------
-    datetime
-
-    """
-    try:
-        return datetime.datetime.strptime(input_date, '%Y-%m-%d')
-    except ValueError:
-        msg = f'Not a valid date: "{input_date}".'
-        raise argparse.ArgumentTypeError(msg)
 
 
 def getinfo(ee_obj, n=4):

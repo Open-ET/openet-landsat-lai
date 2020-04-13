@@ -37,14 +37,21 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
     # CM - Hard coding input parameters for now
     path = 44
     row = 33
-    version = openet.lai.__version__.replace('.', 'p')
-    coll_id = f'projects/openet/lai/landsat/v{version}'
+    version_str = openet.lai.__version__.replace('.', 'p')
+    # version_str = openet.lai.__version__.replace('.', 'p') + '_smile_new'
+    # version_str = openet.lai.__version__.replace('.', 'p') + '_smile_old'
+    # version_str = openet.lai.__version__.replace('.', 'p') + '_nonsmile_new'
+    # version_str = openet.lai.__version__.replace('.', 'p') + '_nonsmile_old'
+    coll_id = f'projects/openet/lai/landsat/v{version_str}'
+
     # start_date = '2017-07-01'
     # end_date = '2017-08-01'
     start_date = '2017-01-01'
     end_date = '2018-01-01'
+    # gee_key_file = None
     gee_key_file = '/Users/mortonc/Projects/keys/openet-api-gee.json'
     # gee_key_file = '/Users/mortonc/Projects/keys/openet-dri-gee.json'
+    # gee_key_file = '/Users/mortonc/Projects/keys/openet-gee.json'
     cloud_cover_max = 70
 
 
@@ -126,18 +133,6 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         image_transform = ee.List(ee.Dictionary(
             ee.Algorithms.Describe(image_proj)).get('transform'))
 
-        # Compute LAI image
-        output_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1) \
-            .set({
-                'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
-                'lai_version': openet.lai.__version__,
-                # CM - Properties in scene export that may eventually be useful
-                # 'coll_id': coll_id,
-                # 'image_id': input_asset_id,
-                # 'scene_id': landsat_id,
-                # 'scale_factor': 1.0 / scale_factor,
-            })
-        #     .rename(['LAI']) \
 
         # TODO: Long term we may want to save as scaled integers to save space
         # if scale_factor > 1:
@@ -153,10 +148,26 @@ def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):
         #     output_img = output_img\
         #         .updateMask(ee.Image('projects/openet/ocean_mask'))
 
+        # Compute LAI image
+        output_img = openet.lai.landsat.getLAIImage(prep_img, sensor, nonveg=1) \
+            .set({
+                'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
+                'lai_version': openet.lai.__version__,
+                # CM - Properties in scene export that may eventually be useful
+                # 'coll_id': coll_id,
+                # 'image_id': input_asset_id,
+                # 'scene_id': landsat_id,
+                # 'scale_factor': 1.0 / scale_factor,
+            })
+        #     .rename(['LAI']) \
+
+        # CM - Copy all the properties from the source image
+        output_img = ee.Image(output_img.copyProperties(landsat_img))
+
         # Start export
         task = ee.batch.Export.image.toAsset(
             image=output_img,
-            description='{}_LAI_{}'.format(landsat_id, version),
+            description='{}_LAI_{}'.format(landsat_id, version_str),
             assetId=output_asset_id,
             crs=image_crs,
             crsTransform=image_transform,

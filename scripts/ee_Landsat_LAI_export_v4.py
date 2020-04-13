@@ -57,6 +57,7 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
     scale_factor = 10000
     output_type = 'uint16'
     model_name = 'LAI'
+    export_id_name = '_v' + openet.lai.__version__.replace('.', 'p')
 
     # Central Valley WRS2 tiles
     # wrs2_tiles = [
@@ -66,6 +67,8 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
     #     'p041r035', 'p041r036',
     #     'p045r032', 'p045r033',
     # ]
+
+    wrs2_tile_fmt = 'p{:03d}r{:03d}'
 
     logging.debug('User tiles: {}'.format(wrs2_tiles))
     wrs2_tiles = [y.strip() for x in wrs2_tiles for y in x.split(',')]
@@ -98,6 +101,18 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
             return False
 
 
+    # # Get current running tasks
+    # tasks = utils.get_ee_tasks()
+    # if logging.getLogger().getEffectiveLevel() == logging.DEBUG:
+    #     logging.debug('  Tasks: {}'.format(len(tasks)))
+    #     input('ENTER')
+
+
+    # if not ee.data.getInfo(coll_id.rsplit('/', 1)[0]):
+    #     logging.debug('\nExport folder does not exist and will be built'
+    #                   '\n  {}'.format(coll_id.rsplit('/', 1)[0]))
+    #     input('Press ENTER to continue')
+    #     ee.data.createAsset({'type': 'FOLDER'}, coll_id.rsplit('/', 1)[0])
     if not ee.data.getInfo(coll_id):
         logging.info('\nExport collection does not exist and will be built'
                      '\n  {}'.format(coll_id))
@@ -106,9 +121,23 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
 
 
     for wrs2_tile in wrs2_tiles:
+        logging.debug('\nWRS2: {}'.format(wrs2_tile))
         path, row = int(wrs2_tile[1:4]), int(wrs2_tile[5:8])
 
+        # Get list of existing images for the target tile
+        logging.debug('  Getting existing asset ID list')
+        asset_coll = ee.ImageCollection(coll_id) \
+            .filterDate(start_date, end_date) \
+            .filterMetadata('wrs2_tile', 'equals',
+                            wrs2_tile_fmt.format(path, row))
+        asset_props = {f'{coll_id}/{x["properties"]["system:index"]}':
+                           x['properties']
+                       for x in asset_coll.getInfo()['features']}
+        # asset_props = {x['id']: x['properties']
+        #                for x in assets_info['features']}
+
         # Get a list of the available Landsat asset IDs
+        logging.debug('  Getting source image ID list')
         input_asset_id_list = getLandsatSR(start_date, end_date, path, row,
                                            cloud_cover_max) \
             .sort('system:time_start') \
@@ -116,27 +145,38 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
             .getInfo()
 
         # Process each Landsat image separately
-        for input_asset_id in input_asset_id_list:
-            landsat_id = input_asset_id.split('/')[-1]
-            output_asset_id = f'{coll_id}/{landsat_id.lower()}'
-            logging.info(landsat_id)
-            logging.debug('  {}'.format(input_asset_id))
-            logging.debug('  {}'.format(output_asset_id))
+        for image_id in input_asset_id_list:
+            scene_id = image_id.split('/')[-1]
+            asset_id = f'{coll_id}/{scene_id.lower()}'
+            logging.info(image_id)
+            logging.debug('  {}'.format(image_id))
+            logging.debug('  {}'.format(asset_id))
 
-            export_id = '{}_LAI_{}'.format(
-                landsat_id, openet.lai.__version__.replace('.', 'p'))
+            export_id = '{}_{}'.format(
+                model_name.lower(), image_id.lower().replace('/', '_'))
+            export_id += export_id_name
+            logging.debug('  {}'.format(export_id))
 
-            if ee.data.getInfo(output_asset_id):
-                if overwrite_flag:
-                    logging.info('  asset already exists - overwriting')
-                    ee.data.deleteAsset(output_asset_id)
-                else:
-                    logging.info('  asset already exists - skipping')
+            if overwrite_flag:
+                # if export_id in tasks.keys():
+                #     logging.info('  Task already submitted, cancelling')
+                #         ee.data.cancelTask(tasks[export_id]['id'])
+                # This is intentionally not an "elif" so that a task can be
+                # cancelled and an existing image/file/asset can be removed
+                if asset_props and asset_id in asset_props.keys():
+                    logging.info('  Asset already exists, removing')
+                    ee.data.deleteAsset(asset_id)
+            else:
+                # if export_id in tasks.keys():
+                #     logging.info('  Task already submitted, skipping')
+                #     continue
+                if asset_props and asset_id in asset_props.keys():
+                    logging.info('  Asset already exists, skipping')
                     continue
 
             # TODO: Module should handle the band renaming and scaling
             # Copied from PTJPL Image.from_landsat_c1_sr()
-            input_img = ee.Image(input_asset_id)
+            input_img = ee.Image(image_id)
             input_bands = ee.Dictionary({
                 'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
                 'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
@@ -157,7 +197,7 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
 
             # Sensor must currently be a python string because it is used to build
             #   a feature collection ID in the lai code
-            sensor = landsat_id.split('_')[0].upper()
+            sensor = scene_id.split('_')[0].upper()
 
             # Get the projection as a server side object for production to avoid
             #   an extra getInfo call
@@ -190,16 +230,16 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
             properties = {
                 'coll_id': coll_id,
                 'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
-                'image_id': input_asset_id,
-                'lai_version': openet.lai.__version__,
+                'image_id': image_id,
+                'landsat_lai_version': openet.lai.__version__,
                 'model_name': model_name,
                 'model_version': openet.lai.__version__,
                 'scale_factor': 1.0 / scale_factor,
-                'scene_id': landsat_id,
+                'scene_id': scene_id,
                 'tool_name': TOOL_NAME,
                 'tool_version': TOOL_VERSION,
                 'wrs2_tile': 'p{}r{}'.format(
-                    landsat_id.split('_')[1][:3], landsat_id.split('_')[1][3:]),
+                    scene_id.split('_')[1][:3], scene_id.split('_')[1][3:]),
                 'CLOUD_COVER': input_info['properties']['CLOUD_COVER'],
                 'CLOUD_COVER_LAND': input_info['properties']['CLOUD_COVER_LAND'],
                 'system:time_start': input_info['properties']['system:time_start'],
@@ -213,7 +253,7 @@ def main(start_dt, end_dt, wrs2_tiles, overwrite_flag=False,
             task = ee.batch.Export.image.toAsset(
                 image=output_img,
                 description=export_id,
-                assetId=output_asset_id,
+                assetId=asset_id,
                 crs=image_crs,
                 crsTransform=image_transform,
             )

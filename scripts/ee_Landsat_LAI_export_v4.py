@@ -11,7 +11,7 @@ from google.cloud import datastore
 
 import openet.lai
 import openet.lai.landsat
-import openet.lai.utils as utils
+import openet.core.utils as utils
 
 TOOL_NAME = 'ee_Landsat_LAI_export'
 # TOOL_NAME = os.path.basename(__file__)

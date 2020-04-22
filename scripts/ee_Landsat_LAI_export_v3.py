@@ -8,7 +8,7 @@ import ee
 
 import openet.lai
 import openet.lai.landsat
-import openet.lai.utils as utils
+import openet.core.utils as utils
 
 
 def main(start_dt=None, end_dt=None, overwrite_flag=False, gee_key_file=None):

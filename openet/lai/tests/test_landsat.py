@@ -6,7 +6,7 @@ import ee
 import pytest
 
 import openet.lai.landsat
-import openet.lai.utils as utils
+import openet.core.utils as utils
 
 logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 

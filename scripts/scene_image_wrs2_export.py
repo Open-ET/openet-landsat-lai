@@ -13,10 +13,10 @@ import ee
 from google.cloud import datastore
 from osgeo import ogr
 
-import utils
 import openet.lai
 import openet.lai.landsat
 import openet.core
+import openet.core.utils as utils
 # CGM - Using SIMS for building image ID list (for now)
 import openet.sims as model
 # import openet.disalexi as model
@@ -302,22 +302,18 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
         input('ENTER')
 
 
-    # Build scene collections and folders as necessary
-    logging.debug('\nChecking scene collections')
-    for collection in collections:
-        logging.debug('  Input Collection:  {}'.format(collection))
-        logging.debug('  Export Collection: {}'.format(scene_coll_id))
-        if not ee.data.getInfo(scene_coll_id.rsplit('/', 1)[0]):
-            logging.debug('\nFolder does not exist and will be built'
-                          '\n  {}'.format(scene_coll_id.rsplit('/', 1)[0]))
-            input('Press ENTER to continue')
-            ee.data.createAsset({'type': 'FOLDER'},
-                                scene_coll_id.rsplit('/', 1)[0])
-        if not ee.data.getInfo(scene_coll_id):
-            logging.info('\nExport collection does not exist and will be built'
-                         '\n  {}'.format(scene_coll_id))
-            input('Press ENTER to continue')
-            ee.data.createAsset({'type': 'IMAGE_COLLECTION'}, scene_coll_id)
+    # Build output collection and folder if necessary
+    logging.debug('\nExport Collection: {}'.format(scene_coll_id))
+    if not ee.data.getInfo(scene_coll_id.rsplit('/', 1)[0]):
+        logging.debug('\nFolder does not exist and will be built'
+                      '\n  {}'.format(scene_coll_id.rsplit('/', 1)[0]))
+        input('Press ENTER to continue')
+        ee.data.createAsset({'type': 'FOLDER'}, scene_coll_id.rsplit('/', 1)[0])
+    if not ee.data.getInfo(scene_coll_id):
+        logging.info('\nExport collection does not exist and will be built'
+                     '\n  {}'.format(scene_coll_id))
+        input('Press ENTER to continue')
+        ee.data.createAsset({'type': 'IMAGE_COLLECTION'}, scene_coll_id)
 
 
     # Get list of MGRS tiles that intersect the study area
@@ -824,9 +820,6 @@ def mgrs_export_tiles(study_area_path, mgrs_coll_id, mgrs_tiles=[],
         tile for tile in sorted(tiles_list, key=lambda k: k['index'])
         if tile['wrs2_tiles']]
 
-    # pprint.pprint(export_list)
-    # input('ENTER')
-
     return export_list
 
 
@@ -860,10 +853,7 @@ def arg_parse():
         '-i', '--ini', type=utils.arg_valid_file,
         help='Input file', metavar='FILE')
     parser.add_argument(
-        '-o', '--overwrite', default=False, action='store_true',
-        help='Force overwrite of existing files')
-    parser.add_argument(
-        '-d', '--debug', default=logging.INFO, const=logging.DEBUG,
+        '--debug', default=logging.INFO, const=logging.DEBUG,
         help='Debug level logging', action='store_const', dest='loglevel')
     parser.add_argument(
         '--delay', default=0, type=float,
@@ -871,6 +861,9 @@ def arg_parse():
     parser.add_argument(
         '--key', type=utils.arg_valid_file, metavar='FILE',
         help='Earth Engine service account JSON key file')
+    parser.add_argument(
+        '--overwrite', default=False, action='store_true',
+        help='Force overwrite of existing files')
     parser.add_argument(
         '--ready', default=-1, type=int,
         help='Maximum number of queued READY tasks')

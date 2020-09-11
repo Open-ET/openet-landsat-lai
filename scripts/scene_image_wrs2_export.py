@@ -622,6 +622,8 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
                     'scene_id': scene_id,
                     'tool_name': TOOL_NAME,
                     'tool_version': TOOL_VERSION,
+                    'wrs2_path': p,
+                    'wrs2_row': r,
                     'wrs2_tile': wrs2_tile_fmt.format(p, r),
                     # Source properties
                     'CLOUD_COVER': output_info['properties']['CLOUD_COVER'],

@@ -77,7 +77,7 @@ def getLAIQA(landsat, sensor, lai):
     # transform = getAffineTransform(landsat.select('red'))
 
     # Get pre-coded convex hull
-    data = ee.FeatureCollection('projects/openet/lai/trianing/LAI_train_convex_hull_by_sensor_v10_1')
+    data = ee.FeatureCollection('projects/openet/lai/training/LAI_train_convex_hull_by_sensor_v10_1')
 
     subset = data.filterMetadata('sensor','equals',sensor)
     subset = subset.sort('index')

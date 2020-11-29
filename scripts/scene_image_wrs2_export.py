@@ -493,7 +493,7 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
                         continue
                     # In update mode only overwrite if the version is old
                     if asset_props and asset_id in asset_props.keys():
-                        model_ver = version_number(model.__version__)
+                        model_ver = version_number(openet.lai.__version__)
                         asset_ver = version_number(
                             asset_props[asset_id]['model_version'])
                         # asset_flt = [
@@ -635,11 +635,17 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
                     'core_version': openet.core.__version__,
                     'date_ingested': datetime.datetime.today().strftime('%Y-%m-%d'),
                     'image_id': image_id,
+                    # CGM - Is this separate property still needed?
+                    # Having it named separately from model_version might make
+                    #   it easier to pass through to other models/calculations
                     'landsat_lai_version': openet.lai.__version__,
                     'model_name': model_name,
-                    'model_version': model.__version__,
+                    'model_version': openet.lai.__version__,
                     'scale_factor': 1.0 / scale_factor,
                     'scene_id': scene_id,
+                    # CGM - Tracking the SIMS version since it was used to build
+                    #   the image collection
+                    'sims_version': model.__version__,
                     'tool_name': TOOL_NAME,
                     'tool_version': TOOL_VERSION,
                     'wrs2_path': p,
@@ -800,7 +806,7 @@ def mgrs_export_tiles(study_area_coll_id, mgrs_coll_id,
         study_area_coll = study_area_coll.filter(
             ee.Filter.inList(study_area_property, study_area_features))
 
-    logging.info('Building MGRS tile list')
+    logging.debug('Building MGRS tile list')
     tiles_coll = ee.FeatureCollection(mgrs_coll_id) \
         .filterBounds(study_area_coll.geometry())
 

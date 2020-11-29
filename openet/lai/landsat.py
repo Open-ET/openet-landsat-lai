@@ -38,10 +38,87 @@ def getLAIImage(image, sensor, nonveg):
     # water_mask = train_img.select('NDVI').lt(0) \
     #     .And(train_img.select('NDWI').gt(0))
     lai_img = lai_img.where(water_mask, 0)
+    qa = getLAIQA(train_img,sensor,lai_img)
+
+    lai_img = lai_img.addBands(qa.byte())
 
     # CM - copyProperties drops the type
     return ee.Image(lai_img.copyProperties(image)) \
         .set('system:time_start', image.get('system:time_start'))
+
+
+def getLAIQA(landsat, sensor, lai):
+    """
+      QA is coded in a byte-size band occupying the least significant 3 bits
+      Bit 0: Input
+          0: Input within range
+          1: Input out-of-range
+      Bit 1: Output (LAI)
+          0: LAI within range (0-8)
+          1: LAI out-of-range
+      Bit 2: Biome
+          0: Vegetation (from NLCD scheme)
+          1: Non-vegetation (from NLCD scheme)
+      
+      args: landsat - Landsat image (with 'biome2' band)
+            sensor - "LT05"/"LE07"/"LC08"
+            lai - computed lai image
+    """
+
+    # maximum for surface reflectance; minimum is always 0
+    red_max = 5100
+    green_max = 5100
+    nir_max = 7100
+    swir1_max = 7100
+    lai_max = 8
+  
+    # information from the Landsat image
+    # crs = landsat.select('red').projection().crs()
+    # transform = getAffineTransform(landsat.select('red'))
+
+    # Get pre-coded convex hull
+    data = ee.FeatureCollection('projects/openet/lai/training/LAI_train_convex_hull_by_sensor_v10_1')
+
+    subset = data.filterMetadata('sensor','equals',sensor)
+    subset = subset.sort('index')
+    hull_array = subset.aggregate_array('in_hull')
+    hull_array_reshape = ee.Array(hull_array).reshape([10,10,10,10])
+
+    # rescale landsat image
+    image_scaled = landsat.select('red').divide(red_max).multiply(10).floor().toInt() \
+        .addBands(landsat.select('green').divide(green_max).multiply(10).floor().toInt()) \
+        .addBands(landsat.select('nir').divide(nir_max).multiply(10).floor().toInt()) \
+        .addBands(landsat.select('swir1').divide(swir1_max).multiply(10).floor().toInt())
+
+    # get an out-of-range mask
+    range_mask = landsat.select('red').gte(0) \
+        .And(landsat.select('red').lt(red_max)) \
+        .And(landsat.select('green').gte(0)) \
+        .And(landsat.select('green').lt(green_max)) \
+        .And(landsat.select('nir').gte(0)) \
+        .And(landsat.select('nir').lt(nir_max)) \
+        .And(landsat.select('swir1').gte(0)) \
+        .And(landsat.select('swir1').lt(swir1_max))
+
+    # apply convel hull and get QA Band
+    hull_image = image_scaled.select('red').multiply(0).add(ee.Image(hull_array_reshape)) \
+        .updateMask(range_mask)
+
+    in_mask = hull_image \
+        .arrayGet(image_scaled.select(['red','green','nir','swir1']).updateMask(range_mask))
+
+    in_mask = in_mask.unmask(0).updateMask(landsat.select('red').mask()).Not().int()
+
+    # check output range
+    out_mask = lai.gte(0).And(lai.lte(lai_max)).updateMask(landsat.select('red').mask()).Not().int()
+
+    # indicate non-vegetation biome
+    biome_mask = landsat.select('biome2').eq(0).int()
+
+    # combine
+    qa_band = in_mask.bitwiseOr(out_mask.leftShift(1)).bitwiseOr(biome_mask.leftShift(2)).toByte()
+
+    return qa_band.rename('QA')
 
 
 def getRFModel(sensor, biome):
@@ -73,8 +150,8 @@ def getRFModel(sensor, biome):
                        'NDVI', 'NDWI', 'sun_zenith', 'sun_azimuth']
 
     return ee.Classifier.smileRandomForest(numberOfTrees=100,
-                                           minLeafPopulation=20,
-                                           variablesPerSplit=8) \
+                                           minLeafPopulation=50,
+                                           variablesPerSplit=5) \
                         .setOutputMode('REGRESSION') \
                         .train(features=training_coll,
                                classProperty='MCD_LAI',

@@ -83,7 +83,7 @@ def getLAIImage(image, sensor, nonveg):
 
     lai_img = lai_img.addBands(qa.byte())
 
-    # CM - copyProperties sometimes drops the type
+    # CGM - copyProperties sometimes drops the type
     return ee.Image(lai_img.copyProperties(image)) \
         .set('system:time_start', image.get('system:time_start'))
 

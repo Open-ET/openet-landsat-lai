@@ -8,25 +8,33 @@ class Model:
         Parameters
         ----------
         image : ee.Image
+            Prepped input image.  Must have the following bands and properties.
+            Bands: 'green', 'red', 'nir', 'swir1', 'pixel_qa'
+            Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE',
+                        'SOLAR_AZIMUTH_ANGLE'
+            Note, the 'pixel_qa' band is only used to set the nodata mask.
         sensor : {'LT05', 'LE07', 'LC08'}
 
+        Notes
+        -----
+        image must have the following properties set:
+            system:time_start, SOLAR_ZENITH_ANGLE, SOLAR_AZIMUTH_ANGLE
+
         """
+        if type(image) is not ee.Image:
+            raise ValueError(f'unsupported input_img type: {type(image)}')
+        if sensor not in ['LC08', 'LE07', 'LT05']:
+            raise ValueError(f'unsupported sensor: {sensor}')
+
         self.image = image
         self.sensor = sensor
 
-        # TODO: Check image type
-        # if type(image) not ee.Image:
-        #     raise ValueError(f'unsupported input_img type: {type(image)}')
-        # TODO: Check sensor values
-        # if sensor not in ['LC08', 'LE07', 'LT05']:
-        #     raise ValueError(f'unsupported sensor: {sensor}')
-
-    # CGM - For now use this lai method to call the getLAIImage function
     def lai(self, nonveg=True):
-        """"""
+        """Wrapper to the getLAIImage function"""
         return getLAIImage(self.image, self.sensor, nonveg)
 
 
+# TODO: Move into Model class
 def getLAIImage(image, sensor, nonveg):
     """Main Algorithm to compute LAI for a Landsat image
 

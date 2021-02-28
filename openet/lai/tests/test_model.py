@@ -11,7 +11,8 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 TEST_IMAGE_ID = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
 TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
-DEFAULT_BANDS = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
+DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
+DEFAULT_VALUES = [0.1, 0.1, 0.3, 0.1, 1]
 
 
 def test_ee_init():
@@ -19,11 +20,21 @@ def test_ee_init():
 
 
 def test_Model_init():
-    input_img = ee.Image.constant([0.1, 0.1, 0.1, 0.3, 0.1, 0.1, 1])\
-        .rename(DEFAULT_BANDS)
+    input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
     image_obj = openet.lai.Model(image=input_img, sensor='LC08')
     assert set(image_obj.image.bandNames().getInfo()) == set(DEFAULT_BANDS)
     assert image_obj.sensor == 'LC08'
+
+
+def test_Model_image_type_exception():
+    with pytest.raises(Exception):
+        openet.lai.Model(image=TEST_IMAGE_ID, sensor='DEADBEEF')
+
+
+def test_Model_sensor_exception():
+    with pytest.raises(Exception):
+        input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
+        openet.lai.Model(image=input_img, sensor='DEADBEEF')
 
 
 def test_Model_lai():
@@ -38,7 +49,7 @@ def test_getVIs_bands():
 
 
 @pytest.mark.parametrize(
-    "blue, red, nir, swir1, ndvi, ndwi, evi, sr",
+    "green, red, nir, swir1, ndvi, ndwi, evi, sr",
     [
         # Raw scaled (0-10000) SR values
         [1000, 2000, 8000, 3000, 0.6, 0.4545, 4.0, 0.6666],
@@ -46,11 +57,11 @@ def test_getVIs_bands():
         # [0.1, 0.2, 0.8, 0.3, 0.6, 0.4545, 4.0, 0.6666],
     ]
 )
-def test_getVIs_constant_values(blue, red, nir, swir1, ndvi, ndwi, evi, sr,
+def test_getVIs_constant_values(green, red, nir, swir1, ndvi, ndwi, evi, sr,
                                 tol=0.01):
     # Check that the VI calculations are valid using constant images
-    input_img = ee.Image.constant([blue, red, nir, swir1])\
-        .rename(['blue', 'red', 'nir', 'swir1'])
+    input_img = ee.Image.constant([green, red, nir, swir1])\
+        .rename(['green', 'red', 'nir', 'swir1'])
     output = utils.constant_image_value(openet.lai.model.getVIs(input_img))
     assert abs(output['NDVI'] - ndvi) <= tol
     assert abs(output['NDWI'] - ndwi) <= tol
@@ -74,11 +85,10 @@ def test_getVIs_point_values(image_id, xy, ndvi, ndwi, evi, sr, tol=0.0001):
 
 
 def test_getTrainImg_bands():
-    input_bands = {'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa'}
     # Both the VI and training bands get added in getTrainImg
     vi_bands = {'NDVI', 'NDWI'}
     training_bands = {'biome2', 'lon', 'lat', 'sun_zenith', 'sun_azimuth', 'mask'}
-    target_bands = input_bands | vi_bands | training_bands
+    target_bands = set(DEFAULT_BANDS) | vi_bands | training_bands
     input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image
     output_bands = openet.lai.model.getTrainImg(input_img).bandNames().getInfo()
     assert target_bands == set(list(output_bands))

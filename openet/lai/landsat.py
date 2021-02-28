@@ -41,45 +41,33 @@ class Landsat_C02_SR(Model):
         # CGM - Testing out not setting any self. parameters and passing inputs
         #   to the super().__init__() call instead
 
-        # CGM - Not sure if we need any of these properties
-        # self.id = self.raw_image.get('system:id')
-        # self.index = self.raw_image.get('system:index')
-        # self.time_start = self.raw_image.get('system:time_start')
-
         # It might be safer to do this with a regex
         sensor = image_id.split('/')[1]
 
         spacecraft_id = ee.String(raw_image.get('SPACECRAFT_ID'))
 
         input_bands = ee.Dictionary({
-            'LANDSAT_4': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'QA_PIXEL'],
-            'LANDSAT_5': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'QA_PIXEL'],
-            'LANDSAT_7': ['SR_B1', 'SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B7',
-                          'QA_PIXEL'],
-            'LANDSAT_8': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'SR_B7',
-                          'QA_PIXEL'],
+            'LANDSAT_4': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'QA_PIXEL'],
+            'LANDSAT_5': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'QA_PIXEL'],
+            'LANDSAT_7': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'QA_PIXEL'],
+            'LANDSAT_8': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
         })
-        output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
+        output_bands = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
 
         # # Cloud mask function must be passed with raw/unnamed image
         # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
         #     raw_image, **cloudmask_args)
 
+        # The reflectance values are intentionally being scaled by 10000 to
+        #   match the Collection 1 SR scaling.
+        # The elevation angle is being converted to a zenith angle
         input_image = raw_image \
             .select(input_bands.get(spacecraft_id), output_bands)\
-            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275,
-                       0.0000275, 0.0000275, 1])\
-            .add([-0.2, -0.2, -0.2, -0.2, -0.2, -0.2, 1])
-
-        input_image = input_image\
-            .divide([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 1])
-
-        input_image = input_image\
+            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275, 1])\
+            .add([-0.2, -0.2, -0.2, -0.2, 1])\
+            .divide([0.0001, 0.0001, 0.0001, 0.0001, 1])\
             .set({'system:time_start': raw_image.get('system:time_start'),
                   'system:index': raw_image.get('system:index'),
-                  # Convert elevation to zenith
                   'SOLAR_ZENITH_ANGLE':
                         ee.Number(raw_image.get('SUN_ELEVATION')).multiply(-1).add(90),
                   'SOLAR_AZIMUTH_ANGLE': raw_image.get('SUN_AZIMUTH'),
@@ -107,12 +95,11 @@ class Landsat_C01_SR(Model):
         spacecraft_id = ee.String(raw_image.get('SATELLITE'))
 
         input_bands = ee.Dictionary({
-            'LANDSAT_4': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
-            'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
-            'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'pixel_qa'],
-            'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'pixel_qa']})
-        output_bands = [
-            'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
+            'LANDSAT_4': ['B2', 'B3', 'B4', 'B5', 'pixel_qa'],
+            'LANDSAT_5': ['B2', 'B3', 'B4', 'B5', 'pixel_qa'],
+            'LANDSAT_7': ['B2', 'B3', 'B4', 'B5', 'pixel_qa'],
+            'LANDSAT_8': ['B3', 'B4', 'B5', 'B6', 'pixel_qa']})
+        output_bands = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
 
         # # Cloud mask function must be passed with raw/unnamed image
         # cloud_mask = openet.core.common.landsat_c1_sr_cloud_mask(
@@ -122,9 +109,7 @@ class Landsat_C01_SR(Model):
             .select(input_bands.get(spacecraft_id), output_bands)
         # CM - Don't unscale the images yet
         #   The current implementation is expecting raw unscaled images
-        #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 1])\
-        #     .set({'SPACECRAFT_ID': spacecraft_id})
-        #     .updateMask(cloud_mask)
+        #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 1])\
 
         input_image = input_image\
             .set({'system:time_start': raw_image.get('system:time_start'),
@@ -155,28 +140,24 @@ class Landsat_C01_TOA(Model):
         spacecraft_id = ee.String(raw_image.get('SPACECRAFT_ID'))
 
         input_bands = ee.Dictionary({
-            'LANDSAT_4': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'BQA'],
-            'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'BQA'],
-            'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'BQA'],
-            'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'BQA']})
-        output_bands = [
-            'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
+            'LANDSAT_4': ['B2', 'B3', 'B4', 'B5', 'BQA'],
+            'LANDSAT_5': ['B2', 'B3', 'B4', 'B5', 'BQA'],
+            'LANDSAT_7': ['B2', 'B3', 'B4', 'B5', 'BQA'],
+            'LANDSAT_8': ['B3', 'B4', 'B5', 'B6', 'BQA']})
+        output_bands = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
 
         # # Cloud mask function must be passed with raw/unnamed image
         # cloud_mask = openet.core.common.landsat_c1_toa_cloud_mask(
         #     raw_image, **cloudmask_args)
 
+        # The reflectance values are intentionally being scaled by 10000 to
+        #   match the Collection 1 SR scaling.
+        # The elevation angle is being converted to a zenith angle
         input_image = raw_image \
-            .select(input_bands.get(spacecraft_id), output_bands)
-
-        # DEADBEEF - Until code is updated, scale image to match a C01 1 SR image
-        input_image = input_image\
-            .divide([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 1])
-
-        input_image = input_image\
+            .select(input_bands.get(spacecraft_id), output_bands)\
+            .divide([0.0001, 0.0001, 0.0001, 0.0001, 1])\
             .set({'system:time_start': raw_image.get('system:time_start'),
                   'system:index': raw_image.get('system:index'),
-                  # Convert elevation to zenith
                   'SOLAR_ZENITH_ANGLE':
                         ee.Number(raw_image.get('SUN_ELEVATION')).multiply(-1).add(90),
                   'SOLAR_AZIMUTH_ANGLE': raw_image.get('SUN_AZIMUTH'),

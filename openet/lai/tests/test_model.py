@@ -135,8 +135,8 @@ def test_getTrainImg_property_values(image_id, xy, azimuth, zenith):
         openet.lai.model.getTrainImg(input_img), xy=xy)
     assert abs(output['lon'] - xy[0]) <= 0.0001
     assert abs(output['lat'] - xy[1]) <= 0.0001
-    assert output['sun_azimuth'] == azimuth
-    assert output['sun_zenith'] == zenith
+    assert abs(output['sun_azimuth'] - azimuth) <= 0.0001
+    assert abs(output['sun_zenith'] - zenith) <= 0.0001
     # assert output['sun_azimuth'] == input_img.get('SOLAR_AZIMUTH_ANGLE').getInfo()
     # assert output['sun_zenith'] == input_img.get('SOLAR_ZENITH_ANGLE').getInfo()
 
@@ -271,6 +271,10 @@ def test_getLAIImage_band_name():
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
         # Folsom Lake
         ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],
+        # Other collections
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
+        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
+
     ]
 )
 def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
@@ -280,81 +284,3 @@ def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
             sensor=image_id.split('/')[1], nonveg=1),
         xy=xy)
     assert abs(output['LAI'] - expected) <= tol
-
-
-# DEADBEEF - getQABits function is commented out in landsat.py
-# @pytest.mark.parametrize(
-#     "expected, img_value, start, end, newName",
-#     [
-#         # CM - Because of how the getQABits function is written and the
-#         #   structure of the pixel_qa band we don't need to check all of these
-#         [1, '0000000000000010', 1, 1, 'Clear'],       # Clear
-#         # [1, '0000000000000100', 2, 2, 'Water'],       # Water
-#         # [1, '0000000000001000', 3, 3, 'Shadow'],      # Cloud Shadow
-#         # [1, '0000000000010000', 4, 4, 'Snow'],        # Snow
-#         # [1, '0000000000100000', 5, 5, 'Cloud'],       # Cloud
-#         [1, '0000000001100000', 6, 7, 'Confidence'],  # Cloud Confidence
-#         [2, '0000000010100000', 6, 7, 'Confidence'],
-#         [3, '0000000011100000', 6, 7, 'Confidence'],
-#     ]
-# )
-# def test_getQABits(expected, img_value, start, end, newName):
-#     input_img = ee.Image.constant(int(img_value, 2))
-#     output = utils.constant_image_value(
-#         openet.lai.model.getQABits(input_img, start, end, newName))
-
-
-# DEADBEEF - maskLST function is commented out in landsat.py
-# @pytest.mark.parametrize(
-#     "pixel_qa",
-#     [
-#         '0000000101000100',  # 324 - Water
-#     ]
-# )
-# def test_maskLST_masked_constant_values(pixel_qa):
-#     input_img = ee.Image([
-#         ee.Image.constant(0.6).rename(['nir']),
-#         ee.Image.constant(int(pixel_qa, 2)).int().rename(['pixel_qa']),
-#     ])
-#     output = utils.constant_image_value(openet.lai.model.maskLST(input_img))
-#     assert output['nir'] is None
-#
-#
-# @pytest.mark.parametrize(
-#     "pixel_qa",
-#     [
-#         '0000000000000010',  # 66 - Clear
-#         '0000000001000010',  # 66 - Clear
-#     ]
-# )
-# def test_maskLST_nonmasked_constant_values(pixel_qa):
-#     input_img = ee.Image([
-#         ee.Image.constant(0.6).rename(['nir']),
-#         ee.Image.constant(int(pixel_qa, 2)).int().rename(['pixel_qa']),
-#     ])
-#     output = utils.constant_image_value(openet.lai.model.maskLST(input_img))
-#     assert output['nir'] is not None
-#
-#
-# @pytest.mark.parametrize(
-#     "image_id, xy",
-#     [
-#         [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205]],  # Folsom Lake
-#         ['LANDSAT/LE07/C01/T1_SR/LE07_043033_20060719', [-120.15610, 38.87292]],  # Water
-#         ['LANDSAT/LE07/C01/T1_SR/LE07_043033_20060719', [-120.14846, 38.87185]],  # Cloud
-#         ['LANDSAT/LE07/C01/T1_SR/LE07_043033_20060719', [-120.17361, 38.86911]],  # Snow
-#         ['LANDSAT/LE07/C01/T1_SR/LE07_043033_20060719', [-120.14546, 38.86904]],  # Shadow
-#     ]
-# )
-# def test_maskLST_masked_point_values(image_id, xy):
-#     # Check that all non-clear pixels are masked
-#     input_img = openet.lai.model.renameLandsat(ee.Image(image_id))
-#     output = utils.point_image_value(openet.lai.model.maskLST(input_img), xy=xy)
-#     assert output['nir'] is None
-#
-#
-# @pytest.mark.parametrize("image_id, xy", [[LANDSAT8_IMAGE_ID, TEST_POINT]])
-# def test_maskLST_nonmasked_point_values(image_id, xy):
-#     input_img = openet.lai.model.renameLandsat(ee.Image(image_id))
-#     output = utils.point_image_value(openet.lai.model.maskLST(input_img), xy=xy)
-#     assert output['nir'] > 0

@@ -38,16 +38,23 @@ class Model:
 def getLAIImage(image, sensor, nonveg):
     """Main Algorithm to compute LAI for a Landsat image
 
-    Args:
-        image: ee.Image
-        sensor: str {'LT05', 'LE07', 'LC08'} (cannot be an EE object)
-        nonveg: True if want to compute LAI for non-vegetation pixels
+    Parameters
+    ----------
+    image : ee.Image
+        Prepped input image.  Must have the following bands and properties.
+        Bands: 'green', 'red', 'nir', 'swir1', 'pixel_qa'
+        Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE',
+                    'SOLAR_AZIMUTH_ANGLE'
+        Note, the 'pixel_qa' band is only used to set the nodata mask.
+    sensor : str {'LT05', 'LE07', 'LC08'}
+    nonveg : bool
+        True if want to compute LAI for non-vegetation pixels
+
+    Returns
+    -------
+    ee.Image
 
     """
-    # DEADBEEF - Image has already been renamed
-    # Add necessary bands to image
-    # image = renameLandsat(image)
-
     train_img = getTrainImg(image)
 
     # Start with an image of all zeros
@@ -76,14 +83,25 @@ def getLAIImage(image, sensor, nonveg):
 
     lai_img = lai_img.addBands(qa.byte())
 
-    # CM - copyProperties drops the type
+    # CM - copyProperties sometimes drops the type
     return ee.Image(lai_img.copyProperties(image)) \
         .set('system:time_start', image.get('system:time_start'))
 
 
 def getLAIQA(landsat, sensor, lai):
     """
-      QA is coded in a byte-size band occupying the least significant 3 bits
+
+    Parameters
+    ----------
+    landsat : ee.Image
+        Landsat image (with 'biome2' band)
+    sensor : {'LT05', 'LE07', 'LC08'}
+    lai : ee.Image
+        Computed lai image
+
+    Notes
+    -----
+    QA is coded in a byte-size band occupying the least significant 3 bits
       Bit 0: Input
           0: Input within range
           1: Input out-of-range
@@ -94,37 +112,33 @@ def getLAIQA(landsat, sensor, lai):
           0: Vegetation (from NLCD scheme)
           1: Non-vegetation (from NLCD scheme)
 
-      args: landsat - Landsat image (with 'biome2' band)
-            sensor - "LT05"/"LE07"/"LC08"
-            lai - computed lai image
     """
 
-    # maximum for surface reflectance; minimum is always 0
+    # Maximum for surface reflectance; minimum is always 0
     red_max = 5100
     green_max = 5100
     nir_max = 7100
     swir1_max = 7100
     lai_max = 8
 
-    # information from the Landsat image
-    # crs = landsat.select('red').projection().crs()
-    # transform = getAffineTransform(landsat.select('red'))
-
     # Get pre-coded convex hull
-    data = ee.FeatureCollection('projects/openet/lai/training/LAI_train_convex_hull_by_sensor_v10_1')
+    data_id = 'projects/openet/lai/training/LAI_train_convex_hull_by_sensor_v10_1'
+    hull_array = ee.FeatureCollection(data_id)\
+        .filterMetadata('sensor', 'equals', sensor)\
+        .sort('index')\
+        .aggregate_array('in_hull')
+    hull_array_reshape = ee.Array(hull_array).reshape([10, 10, 10, 10])
 
-    subset = data.filterMetadata('sensor', 'equals', sensor)
-    subset = subset.sort('index')
-    hull_array = subset.aggregate_array('in_hull')
-    hull_array_reshape = ee.Array(hull_array).reshape([10,10,10,10])
+    # Rescale landsat image
+    image_scaled = landsat.select(['red', 'green', 'nir', 'swir1'])\
+        .divide([red_max, green_max, nir_max, swir1_max])\
+        .multiply(10).floor().toInt()
+    # image_scaled = landsat.select('red').divide(red_max).multiply(10).floor().toInt() \
+    #     .addBands(landsat.select('green').divide(green_max).multiply(10).floor().toInt()) \
+    #     .addBands(landsat.select('nir').divide(nir_max).multiply(10).floor().toInt()) \
+    #     .addBands(landsat.select('swir1').divide(swir1_max).multiply(10).floor().toInt())
 
-    # rescale landsat image
-    image_scaled = landsat.select('red').divide(red_max).multiply(10).floor().toInt() \
-        .addBands(landsat.select('green').divide(green_max).multiply(10).floor().toInt()) \
-        .addBands(landsat.select('nir').divide(nir_max).multiply(10).floor().toInt()) \
-        .addBands(landsat.select('swir1').divide(swir1_max).multiply(10).floor().toInt())
-
-    # get an out-of-range mask
+    # Get an out-of-range mask
     range_mask = landsat.select('red').gte(0) \
         .And(landsat.select('red').lt(red_max)) \
         .And(landsat.select('green').gte(0)) \
@@ -134,23 +148,26 @@ def getLAIQA(landsat, sensor, lai):
         .And(landsat.select('swir1').gte(0)) \
         .And(landsat.select('swir1').lt(swir1_max))
 
-    # apply convel hull and get QA Band
-    hull_image = image_scaled.select('red').multiply(0).add(ee.Image(hull_array_reshape)) \
+    # Apply convel hull and get QA Band
+    hull_image = image_scaled.select('red') \
+        .multiply(0).add(ee.Image(hull_array_reshape)) \
         .updateMask(range_mask)
 
-    in_mask = hull_image \
-        .arrayGet(image_scaled.select(['red','green','nir','swir1']).updateMask(range_mask))
+    in_mask = hull_image.arrayGet(image_scaled.updateMask(range_mask))
 
-    in_mask = in_mask.unmask(0).updateMask(landsat.select('red').mask()).Not().int()
+    in_mask = in_mask.unmask(0) \
+        .updateMask(landsat.select('red').mask()).Not().int()
 
-    # check output range
-    out_mask = lai.gte(0).And(lai.lte(lai_max)).updateMask(landsat.select('red').mask()).Not().int()
+    # Check output range
+    out_mask = lai.gte(0).And(lai.lte(lai_max)) \
+        .updateMask(landsat.select('red').mask()).Not().int()
 
-    # indicate non-vegetation biome
+    # Indicate non-vegetation biome
     biome_mask = landsat.select('biome2').eq(0).int()
 
-    # combine
-    qa_band = in_mask.bitwiseOr(out_mask.leftShift(1)).bitwiseOr(biome_mask.leftShift(2)).toByte()
+    # Combine
+    qa_band = in_mask.bitwiseOr(out_mask.leftShift(1)) \
+        .bitwiseOr(biome_mask.leftShift(2)).toByte()
 
     return qa_band.rename('QA')
 
@@ -158,9 +175,10 @@ def getLAIQA(landsat, sensor, lai):
 def getRFModel(sensor, biome):
     """Wrapper function to train RF model given biome and sensor
 
-    Args:
-        sensor: str, ee.String
-        biome: int, ee.Number
+    Parameters
+    ----------
+    sensor: str, ee.String
+    biome: int, ee.Number
 
     """
 
@@ -193,24 +211,38 @@ def getRFModel(sensor, biome):
                                inputProperties=inputProperties)
 
 
-# TODO: Change name of "image" to something that indicates it has training bands
-def getLAIforBiome(image, biome, rf_model):
+def getLAIforBiome(train_img, biome, rf_model):
+    """Compute LAI for an input Landsat image and Random Forest models
+
+    Parameters
+    ----------
+    train_img : ee.Image
+        Must have training bands added
+    biome : int
+    rf_model : ee.Classifier
+
+    Returns
+    -------
+    ee.Image
+
     """
-    Function that computes LAI for an input Landsat image and Random Forest models
-    Args:
-        image: ee.Image, must have training bands added
-        biome: int
-        rf_model: ee.Classifier
-    """
-    biom_lai = image\
-        .updateMask(image.select('biome2').eq(ee.Number(biome))) \
+    biom_lai = train_img\
+        .updateMask(train_img.select('biome2').eq(ee.Number(biome))) \
         .classify(rf_model, 'LAI')
     return biom_lai
 
 
 def getTrainImg(image):
-    """
-    Function that takes an Landsat image and prepare feature bands
+    """Function that takes n Landsat image and prepare feature bands
+
+    Parameters
+    ----------
+    image : ee.Image
+
+    Returns
+    -------
+    ee.Image
+
     """
 
     # Get NLCD for corresponding year
@@ -287,8 +319,16 @@ def getTrainImg(image):
 
 
 def getVIs(image):
-    """
-    Compute VIs for an Landsat image
+    """Compute VIs for an Landsat image
+
+    Parameters
+    ----------
+    image : ee.Image
+
+    Returns
+    -------
+    ee.Image
+
     """
     ndvi_img = image.expression(
         'float((b("nir") - b("red"))) / (b("nir") + b("red"))')

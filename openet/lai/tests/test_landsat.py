@@ -36,8 +36,8 @@ def test_Landsat_C02_SR_image_properties():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
     output = openet.lai.Landsat_C02_SR(image_id).image.getInfo()
     assert output['properties']['system:time_start']
-    assert output['properties']['SOLAR_ZENITH_ANGLE']
-    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+    assert abs(output['properties']['SOLAR_ZENITH_ANGLE'] - 25.7206) <= 0.0001
+    assert abs(output['properties']['SOLAR_AZIMUTH_ANGLE'] - 127.0891) <= 0.0001
 
 
 # CGM - The C02 SR images are being scaled to match the C01 SR
@@ -73,8 +73,8 @@ def test_Landsat_C01_SR_image_properties():
     image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
     output = openet.lai.Landsat_C01_SR(image_id).image.getInfo()
     assert output['properties']['system:time_start']
-    assert output['properties']['SOLAR_ZENITH_ANGLE']
-    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+    assert abs(output['properties']['SOLAR_ZENITH_ANGLE'] - 25.7206) <= 0.0001
+    assert abs(output['properties']['SOLAR_AZIMUTH_ANGLE'] - 127.0891) <= 0.0001
 
 
 def test_Landsat_C01_SR_scaling():
@@ -109,8 +109,8 @@ def test_Landsat_C01_TOA_image_properties():
     image_id = 'LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
     output = openet.lai.Landsat_C01_TOA(image_id).image.getInfo()
     assert output['properties']['system:time_start']
-    assert output['properties']['SOLAR_ZENITH_ANGLE']
-    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+    assert abs(output['properties']['SOLAR_ZENITH_ANGLE'] - 25.7206) <= 0.0001
+    assert abs(output['properties']['SOLAR_AZIMUTH_ANGLE'] - 127.0891) <= 0.0001
 
 
 # CGM - The C01 TOA images are being scaled to match the C01 SR

@@ -571,39 +571,40 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
                     ','.join(map(str, output_info['bands'][0]['crs_transform'])))
 
 
+                # Generate LAI image
+                output_img = openet.lai.Landsat(image_id).lai(nonveg=True)\
+                    .select(['LAI'])
 
-
-                # TODO: LAI module should handle the band renaming
-                #   The LAI module is currently expecting raw (scaled) images
-                # Copied from PTJPL Image.from_landsat_c1_sr()
-                landsat_img = ee.Image(image_id)
-                input_bands = ee.Dictionary({
-                    'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
-                    'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
-                    'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B10', 'pixel_qa']})
-                output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
-                                'pixel_qa']
-                spacecraft_id = ee.String(landsat_img.get('SATELLITE'))
-                prep_img = landsat_img \
-                    .select(input_bands.get(spacecraft_id), output_bands) \
-                    .set({'system:index': landsat_img.get('system:index'),
-                          'system:time_start': landsat_img.get('system:time_start'),
-                          'system:id': landsat_img.get('system:id'),
-                          'SATELLITE': spacecraft_id,
-                         })
-                # CM - Don't unscale the images yet
-                # The current implementation is expecting raw unscaled images
-                #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1]) \
-
-                # Sensor must currently be a python string because it is used to build
-                #   a feature collection ID in the lai code
-                sensor = scene_id.split('_')[0].upper()
-
-                # Compute LAI image
-                output_img = openet.lai.landsat.getLAIImage(
-                    prep_img, sensor, nonveg=1)
-
-
+                # # DEADBEEF - Old code that prepped the image for getLAIImage
+                # # TODO: LAI module should handle the band renaming
+                # #   The LAI module is currently expecting raw (scaled) images
+                # # Copied from PTJPL Image.from_landsat_c1_sr()
+                # landsat_img = ee.Image(image_id)
+                # input_bands = ee.Dictionary({
+                #     'LANDSAT_5': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
+                #     'LANDSAT_7': ['B1', 'B2', 'B3', 'B4', 'B5', 'B7', 'B6', 'pixel_qa'],
+                #     'LANDSAT_8': ['B2', 'B3', 'B4', 'B5', 'B6', 'B7', 'B10', 'pixel_qa']})
+                # output_bands = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'tir',
+                #                 'pixel_qa']
+                # spacecraft_id = ee.String(landsat_img.get('SATELLITE'))
+                # prep_img = landsat_img \
+                #     .select(input_bands.get(spacecraft_id), output_bands) \
+                #     .set({'system:index': landsat_img.get('system:index'),
+                #           'system:time_start': landsat_img.get('system:time_start'),
+                #           'system:id': landsat_img.get('system:id'),
+                #           'SATELLITE': spacecraft_id,
+                #          })
+                # # CM - Don't unscale the images yet
+                # # The current implementation is expecting raw unscaled images
+                # #     .multiply([0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.0001, 0.1, 1]) \
+                #
+                # # Sensor must currently be a python string because it is used to build
+                # #   a feature collection ID in the lai code
+                # sensor = scene_id.split('_')[0].upper()
+                #
+                # # Compute LAI image
+                # output_img = openet.lai.landsat.getLAIImage(
+                #     prep_img, sensor, nonveg=1)
 
 
                 # CGM - We will need to think this through a little bit more

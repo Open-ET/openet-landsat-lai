@@ -10,8 +10,10 @@ import openet.core.utils as utils
 
 logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 
-LANDSAT8_IMAGE_ID = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
+TEST_IMAGE_ID = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
+TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
+DEFAULT_BANDS = ['blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa']
 
 
 def test_ee_init():
@@ -21,27 +23,167 @@ def test_ee_init():
 @pytest.mark.parametrize(
     'image_id',
     [
-        [LANDSAT8_IMAGE_ID],
-        ['LANDSAT/LE07/C01/T1_SR/LE07_044033_20170724'],
-        # ['LANDSAT/LT05/C01/T1_SR/LT05_044033_201107XX'],
-        # # This will fail for Landsat TOA images
-        # ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'],
-        # ['LANDSAT/LE07/C01/T1_TOA/LE07_044033_20170724'],
-        # ['LANDSAT/LT05/C01/T1_TOA/LT05_044033_201107XX'],
+        'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
+        # 'LANDSAT/LE07/C02/T1_L2/LE07_044033_20170724',
+        # 'LANDSAT/LT05/C02/T1_L2/LT05_044033_20110716',
+        # 'LANDSAT/LT04/C02/T1_L2/LT04_044033_19830812',
     ]
 )
-def test_renameLandsat(image_id):
-    output = openet.lai.landsat.renameLandsat(ee.Image(image_id))\
-        .bandNames().getInfo()
-    assert set(output) == {'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa'}
+def test_Landsat_C02_SR_band_names(image_id):
+    output = openet.lai.Landsat_C02_SR(image_id).input_img.bandNames().getInfo()
+    assert set(output) == set(DEFAULT_BANDS)
+
+
+def test_Landsat_C02_SR_image_properties():
+    image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
+    output = openet.lai.Landsat_C02_SR(image_id).input_img.getInfo()
+    assert output['properties']['system:time_start']
+    assert output['properties']['SOLAR_ZENITH_ANGLE']
+    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+
+
+# CGM - The C02 SR images are being scaled to match the C01 SR
+def test_Landsat_C02_SR_scaling():
+    image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
+    output = utils.point_image_value(
+        openet.lai.Landsat_C02_SR(image_id).input_img, xy=TEST_POINT)
+    assert output['nir'] > 1000
+
+
+# CGM - sensor is not currently being set as a class property
+# def test_Landsat_C02_SR_sensor():
+#     sensor = openet.lai.Landsat_C02_SR(TEST_IMAGE_ID).sensor
+#     assert sensor == TEST_IMAGE_ID.split('/')[1]
+
+
+@pytest.mark.parametrize(
+    'image_id',
+    [
+        'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+        'LANDSAT/LE07/C01/T1_SR/LE07_044033_20170724',
+        'LANDSAT/LT05/C01/T1_SR/LT05_044033_20110716',
+        # 'LANDSAT/LT04/C01/T1_SR/LT04_044033_19830812',
+    ]
+)
+def test_Landsat_C01_SR_band_names(image_id):
+    output = openet.lai.Landsat_C01_SR(image_id).input_img.bandNames().getInfo()
+    assert set(output) == set(DEFAULT_BANDS)
+
+
+def test_Landsat_C01_SR_image_properties():
+    image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
+    output = openet.lai.Landsat_C01_SR(image_id).input_img.getInfo()
+    assert output['properties']['system:time_start']
+    assert output['properties']['SOLAR_ZENITH_ANGLE']
+    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+
+
+def test_Landsat_C01_SR_scaling():
+    image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
+    output = utils.point_image_value(
+        openet.lai.Landsat_C01_SR(image_id).input_img, xy=TEST_POINT)
+    assert output['nir'] > 1000
+
+
+# CGM - sensor is not currently being set as a class property
+# def test_Landsat_C01_SR_sensor():
+#     sensor = openet.lai.Landsat_C01_SR(TEST_IMAGE_ID).sensor
+#     assert sensor == TEST_IMAGE_ID.split('/')[1]
+
+
+@pytest.mark.parametrize(
+    'image_id',
+    [
+        'LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716',
+        'LANDSAT/LE07/C01/T1_TOA/LE07_044033_20170724',
+        'LANDSAT/LT05/C01/T1_TOA/LT05_044033_20110716',
+        # 'LANDSAT/LT04/C01/T1_TOA/LT04_044033_19830812',
+    ]
+)
+def test_Landsat_C01_TOA_band_names(image_id):
+    output = openet.lai.Landsat_C01_TOA(image_id).input_img.bandNames().getInfo()
+    assert set(output) == set(DEFAULT_BANDS)
+
+
+def test_Landsat_C01_TOA_image_properties():
+    image_id = 'LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
+    output = openet.lai.Landsat_C01_TOA(image_id).input_img.getInfo()
+    assert output['properties']['system:time_start']
+    assert output['properties']['SOLAR_ZENITH_ANGLE']
+    assert output['properties']['SOLAR_AZIMUTH_ANGLE']
+
+
+# CGM - The C01 TOA images are being scaled to match the C01 SR
+def test_Landsat_C01_TOA_scaling():
+    image_id='LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
+    output = utils.point_image_value(
+        openet.lai.Landsat_C01_TOA(image_id).input_img, xy=TEST_POINT)
+    pprint.pprint(output)
+    assert output['nir'] > 1000
+
+
+# CGM - sensor is not currently being set as a class property
+# def test_Landsat_C01_TOA_sensor():
+#     sensor = openet.lai.Landsat_C01_TOA(TEST_IMAGE_ID).sensor
+#     assert sensor == TEST_IMAGE_ID.split('/')[1]
+
+
+@pytest.mark.parametrize(
+    'image_id',
+    [
+        'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716',
+        'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+        'LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716',
+    ]
+)
+def test_Landsat_band_names(image_id):
+    output = openet.lai.Landsat(image_id).input_img.bandNames().getInfo()
+    assert set(output) == set(DEFAULT_BANDS)
+
+
+# CGM - sensor is not currently being set as a class property
+# def test_Landsat_sensor(image_id='LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'):
+#     assert openet.lai.Landsat(image_id).input_img.sensor == image_id.split('/')[1]
+
+
+def test_Model_init():
+    input_img = ee.Image.constant([0.1, 0.1, 0.1, 0.3, 0.1, 0.1, 1])\
+        .rename(DEFAULT_BANDS)
+    image_obj = openet.lai.Model(input_img=input_img, sensor='LC08')
+    assert set(image_obj.input_img.bandNames().getInfo()) == set(DEFAULT_BANDS)
+    assert image_obj.sensor == 'LC08'
+
+
+def test_Model_lai():
+    assert True
+
+
+# DEADBEEF - Function is not being used anymore
+# @pytest.mark.parametrize(
+#     'image_id',
+#     [
+#         [LANDSAT8_IMAGE_ID],
+#         ['LANDSAT/LE07/C01/T1_SR/LE07_044033_20170724'],
+#         # ['LANDSAT/LT05/C01/T1_SR/LT05_044033_201107XX'],
+#         # # This will fail for Landsat TOA images
+#         # ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'],
+#         # ['LANDSAT/LE07/C01/T1_TOA/LE07_044033_20170724'],
+#         # ['LANDSAT/LT05/C01/T1_TOA/LT05_044033_20110716'],
+#     ]
+# )
+# def test_renameLandsat(image_id):
+#     output = openet.lai.landsat.renameLandsat(ee.Image(image_id))\
+#         .bandNames().getInfo()
+#     assert set(output) == {'blue', 'green', 'red', 'nir', 'swir1', 'swir2', 'pixel_qa'}
+
+
 
 
 def test_getVIs_bands():
     # Check that the expected bands are added to the output image
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
-    input_bands = input_img.bandNames().getInfo()
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
     output = openet.lai.landsat.getVIs(input_img).bandNames().getInfo()
-    assert set(output) == set(input_bands) | {'NDVI', 'NDWI'}
+    assert set(output) == set(DEFAULT_BANDS) | {'NDVI', 'NDWI'}
 
 
 @pytest.mark.parametrize(
@@ -66,14 +208,16 @@ def test_getVIs_constant_values(blue, red, nir, swir1, ndvi, ndwi, evi, sr,
 @pytest.mark.parametrize(
     "image_id, xy, ndvi, ndwi, evi, sr",
     [
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 0.8744, 0.5043, 0.5301, 14.9227],
-        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], -0.5294, 0.4328, 0, 0],  # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+         TEST_POINT, 0.8744, 0.5043, 0.5301, 14.9227],
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+         [-121.1445, 38.7205], -0.5294, 0.4328, 0, 0],  # Folsom Lake
     ]
 )
 def test_getVIs_point_values(image_id, xy, ndvi, ndwi, evi, sr, tol=0.0001):
     # Check that the VI calculations are valid at specific points
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
-    output = utils.point_image_value(openet.lai.landsat.getVIs(input_img), xy=xy)
+    output = utils.point_image_value(openet.lai.landsat.getVIs(
+        openet.lai.Landsat(image_id=image_id).input_img), xy=xy)
     assert abs(output['NDVI'] - ndvi) <= tol
     assert abs(output['NDWI'] - ndwi) <= tol
 
@@ -84,7 +228,7 @@ def test_getTrainImg_bands():
     vi_bands = {'NDVI', 'NDWI'}
     training_bands = {'biome2', 'lon', 'lat', 'sun_zenith', 'sun_azimuth', 'mask'}
     target_bands = input_bands | vi_bands | training_bands
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
     output_bands = openet.lai.landsat.getTrainImg(input_img).bandNames().getInfo()
     assert target_bands == set(list(output_bands))
 
@@ -111,21 +255,27 @@ def test_getTrainImg_bands():
     ]
 )
 def test_getTrainImg_nlcd_year(date, nlcd_band):
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID)) \
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img\
         .set({'system:time_start': ee.Date(date).millis()})
     output = openet.lai.landsat.getTrainImg(input_img).get('nlcd_year').getInfo()
     assert output == nlcd_band
 
 
-def test_getTrainImg_property_values():
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
+@pytest.mark.parametrize(
+    "image_id, xy, azimuth, zenith",
+    [
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+         TEST_POINT, 127.089134, 25.720642],
+    ]
+)
+def test_getTrainImg_property_values(image_id, xy, azimuth, zenith):
+    input_img = openet.lai.Landsat(image_id=image_id).input_img
     output = utils.point_image_value(
-        openet.lai.landsat.getTrainImg(input_img), xy=TEST_POINT)
-    assert abs(output['lon'] - TEST_POINT[0]) <= 0.0001
-    assert abs(output['lat'] - TEST_POINT[1]) <= 0.0001
-    # CM - Hardcoding solar angles for now to avoid extra getInfo calls
-    assert output['sun_azimuth'] == 127.089134
-    assert output['sun_zenith'] == 25.720642
+        openet.lai.landsat.getTrainImg(input_img), xy=xy)
+    assert abs(output['lon'] - xy[0]) <= 0.0001
+    assert abs(output['lat'] - xy[1]) <= 0.0001
+    assert output['sun_azimuth'] == azimuth
+    assert output['sun_zenith'] == zenith
     # assert output['sun_azimuth'] == input_img.get('SOLAR_AZIMUTH_ANGLE').getInfo()
     # assert output['sun_zenith'] == input_img.get('SOLAR_ZENITH_ANGLE').getInfo()
 
@@ -133,17 +283,17 @@ def test_getTrainImg_property_values():
 @pytest.mark.parametrize(
     "image_id, xy, nlcd, biome2",
     [
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 81, 6],
-        # CM - These are getting set to None right now
-        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 81, 6],
+        # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+         [-121.1445, 38.7205], 11, 0],
         ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718',
          [-118.51162, 36.55814], 12, 0],
     ]
 )
 def test_getTrainImg_biome_point_values(image_id, xy, nlcd, biome2):
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
-    output = utils.point_image_value(
-        openet.lai.landsat.getTrainImg(input_img), xy=xy)
+    output = utils.point_image_value(openet.lai.landsat.getTrainImg(
+        openet.lai.Landsat(image_id=image_id).input_img), xy=xy)
     assert output['biome2'] == biome2
 
 
@@ -151,13 +301,14 @@ def test_getTrainImg_biome_point_values(image_id, xy, nlcd, biome2):
 # @pytest.mark.parametrize(
 #     "image_id, xy, nlcd, biome2",
 #     [
-#         [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 11, 0],   # Folsom Lake
+#         ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716',
+#          [-121.1445, 38.7205], 11, 0],
 #         ['LANDSAT/LC08/C01/T1_SR/LC08_042034_20170718',
 #          [-118.51162, 36.55814], 12, 0],
 #     ]
 # )
 # def test_getTrainImg_biome_nodata(image_id, xy, nlcd, biome2):
-#     input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
+#     input_img = openet.lai.Landsat(image_id=image_id)
 #     output = utils.point_image_value(
 #         openet.lai.landsat.getTrainImg(input_img), xy=xy)
 #     assert output['biome2'] is None
@@ -208,61 +359,65 @@ def test_getRFModel_sensor(sensor, biome):
 @pytest.mark.parametrize(
     "image_id, xy, biome, expected",
     [
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 6, 4.3485],  # NLCD 82
-        # Other random points in test image
-        [LANDSAT8_IMAGE_ID, [-121.14450, 38.72050], 0, 0.4161],  # NLCD 11 (Folsom Lake)
-        [LANDSAT8_IMAGE_ID, [-120.81146, 38.82813], 1, 1.2469],  # NLCD 41
-        [LANDSAT8_IMAGE_ID, [-120.77515, 38.81689], 2, 5.1899],  # NLCD 42
-        [LANDSAT8_IMAGE_ID, [-120.76897, 38.82505], 3, 5.2173],  # NLCD 43
-        [LANDSAT8_IMAGE_ID, [-120.79558, 38.81790], 4, 2.0552],  # NLCD 52
-        [LANDSAT8_IMAGE_ID, [-121.42478, 38.73954], 5, 0.4451],  # NLCD 71
-        [LANDSAT8_IMAGE_ID, [-121.43285, 38.73834], 5, 0.4270],  # NLCD 81
-        [LANDSAT8_IMAGE_ID, [-121.25980, 38.89904], 7, 5.1384],  # NLCD 90
-        [LANDSAT8_IMAGE_ID, [-120.63588, 38.90885], 8, 5.15185], # NLCD 95
-        # DEADBEEF - Test values for old training collection and non-smile classifier
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 6, 4.3203],  # NLCD 82
-        # # Other random points in test image
-        # [LANDSAT8_IMAGE_ID, [-121.14450, 38.72050], 0, 0.5066],  # Folsom Lake
-        # [LANDSAT8_IMAGE_ID, [-120.81146, 38.82813], 1, 1.2458],  # NLCD 41
-        # [LANDSAT8_IMAGE_ID, [-120.77515, 38.81689], 2, 5.2606],  # NLCD 42
-        # [LANDSAT8_IMAGE_ID, [-120.76897, 38.82505], 3, 5.2764],  # NLCD 43
-        # [LANDSAT8_IMAGE_ID, [-120.79558, 38.81790], 4, 2.0643],  # NLCD 52
-        # [LANDSAT8_IMAGE_ID, [-121.42478, 38.73954], 5, 0.4459],  # NLCD 71
-        # [LANDSAT8_IMAGE_ID, [-121.43285, 38.73834], 5, 0.4257],  # NLCD 81
-        # [LANDSAT8_IMAGE_ID, [-121.25980, 38.89904], 7, 5.1061],  # NLCD 90
-        # [LANDSAT8_IMAGE_ID, [-120.63588, 38.90885], 8, 5.1012],  # NLCD 95
+        # Test values for minLeafPopulation=50 & variablesPerSplit=5
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 4.26614],             # NLCD 82
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 4.26614], # NLCD 82
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.96222], # NLCD 11 (Folsom Lake)
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.29583], # NLCD 41
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.77515, 38.81689], 2, 5.35341], # NLCD 42
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.76897, 38.82505], 3, 5.21886], # NLCD 43
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.93452], # NLCD 52
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.45943], # NLCD 71
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.42295], # NLCD 81
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.25980, 38.89904], 7, 5.14200], # NLCD 90
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.63588, 38.90885], 8, 4.63967], # NLCD 95
+        # # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 4.3485], # NLCD 82
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.4161], # NLCD 11 (Folsom Lake)
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.2469], # NLCD 41
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.77515, 38.81689], 2, 5.1899], # NLCD 42
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.76897, 38.82505], 3, 5.2173], # NLCD 43
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.79558, 38.81790], 4, 2.0552], # NLCD 52
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.4451], # NLCD 71
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.4270], # NLCD 81
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.25980, 38.89904], 7, 5.1384], # NLCD 90
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.63588, 38.90885], 8, 5.15185], # NLCD 95
     ]
 )
 def test_getLAIforBiome_point_values(image_id, xy, biome, expected, tol=0.0001):
-    input_img = openet.lai.landsat.getTrainImg(
-        openet.lai.landsat.renameLandsat(ee.Image(image_id)))
-    sensor = LANDSAT8_IMAGE_ID.split('/')[-1][:4]
+    training_img = openet.lai.landsat.getTrainImg(
+        openet.lai.Landsat(image_id=image_id).input_img)
+    sensor = image_id.split('/')[-1][:4]
     rf_model = openet.lai.landsat.getRFModel(sensor, biome)
     output = utils.point_image_value(
-        openet.lai.landsat.getLAIforBiome(input_img, biome, rf_model), xy=xy)
+        openet.lai.landsat.getLAIforBiome(training_img, biome, rf_model), xy=xy)
     assert abs(output['LAI'] - expected) <= tol
 
 
 def test_getLAIImage_band_name():
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(LANDSAT8_IMAGE_ID))
-    output = openet.lai.landsat.getLAIImage(input_img, 'LC08', nonveg=1)\
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
+    output = openet.lai.landsat.getLAIImage(input_img, TEST_SENSOR, nonveg=1)\
         .bandNames().getInfo()
-    assert set(output) == {'LAI'}
+    assert set(output) == {'LAI', 'QA'}
 
 
 @pytest.mark.parametrize(
     "image_id, xy, expected",
     [
-        [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3485], # smileRandomForest, new coll
-        # [LANDSAT8_IMAGE_ID, TEST_POINT, 4.3203], # randomForest, old collection
-        [LANDSAT8_IMAGE_ID, [-121.1445, 38.7205], 0],   # Folsom Lake
+        # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
+        # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
+        # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],
     ]
 )
 def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
-    input_img = openet.lai.landsat.renameLandsat(ee.Image(image_id))
-    sensor = image_id.split('/')[-1][:4]
     output = utils.point_image_value(
-        openet.lai.landsat.getLAIImage(input_img, sensor, nonveg=1), xy=xy)
+        openet.lai.landsat.getLAIImage(
+            openet.lai.Landsat(image_id=image_id).input_img,
+            sensor=image_id.split('/')[1], nonveg=1),
+        xy=xy)
     assert abs(output['LAI'] - expected) <= tol
 
 

@@ -310,21 +310,21 @@ def getVIs(image):
 
 # TODO: Move to image.py or model.py module?
 class Model:
-    def __init__(self, input_img, sensor):
+    def __init__(self, image, sensor):
         """
 
         Parameters
         ----------
-        input_img : ee.Image
-        sensor : str
+        image : ee.Image
+        sensor : {'LT05', 'LE07', 'LC08'}
 
         """
-        self.input_img = input_img
+        self.image = image
         self.sensor = sensor
 
-        # TODO: Check input_image type
-        # if type(input_img) not ee.Image:
-        #     raise ValueError(f'unsupported input_img type: {type(input_img)}')
+        # TODO: Check image type
+        # if type(image) not ee.Image:
+        #     raise ValueError(f'unsupported input_img type: {type(image)}')
         # TODO: Check sensor values
         # if sensor not in ['LC08', 'LE07', 'LT05']:
         #     raise ValueError(f'unsupported sensor: {sensor}')
@@ -332,7 +332,7 @@ class Model:
     # CGM - For now use this lai method to call the getLAIImage function
     def lai(self, nonveg=True):
         """"""
-        return getLAIImage(self.input_img, self.sensor, nonveg)
+        return getLAIImage(self.image, self.sensor, nonveg)
 
 
 class Landsat(object):

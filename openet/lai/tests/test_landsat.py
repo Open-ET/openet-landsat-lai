@@ -30,13 +30,13 @@ def test_ee_init():
     ]
 )
 def test_Landsat_C02_SR_band_names(image_id):
-    output = openet.lai.Landsat_C02_SR(image_id).input_img.bandNames().getInfo()
+    output = openet.lai.Landsat_C02_SR(image_id).image.bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS)
 
 
 def test_Landsat_C02_SR_image_properties():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
-    output = openet.lai.Landsat_C02_SR(image_id).input_img.getInfo()
+    output = openet.lai.Landsat_C02_SR(image_id).image.getInfo()
     assert output['properties']['system:time_start']
     assert output['properties']['SOLAR_ZENITH_ANGLE']
     assert output['properties']['SOLAR_AZIMUTH_ANGLE']
@@ -46,7 +46,7 @@ def test_Landsat_C02_SR_image_properties():
 def test_Landsat_C02_SR_scaling():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
     output = utils.point_image_value(
-        openet.lai.Landsat_C02_SR(image_id).input_img, xy=TEST_POINT)
+        openet.lai.Landsat_C02_SR(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 
@@ -66,13 +66,13 @@ def test_Landsat_C02_SR_scaling():
     ]
 )
 def test_Landsat_C01_SR_band_names(image_id):
-    output = openet.lai.Landsat_C01_SR(image_id).input_img.bandNames().getInfo()
+    output = openet.lai.Landsat_C01_SR(image_id).image.bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS)
 
 
 def test_Landsat_C01_SR_image_properties():
     image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
-    output = openet.lai.Landsat_C01_SR(image_id).input_img.getInfo()
+    output = openet.lai.Landsat_C01_SR(image_id).image.getInfo()
     assert output['properties']['system:time_start']
     assert output['properties']['SOLAR_ZENITH_ANGLE']
     assert output['properties']['SOLAR_AZIMUTH_ANGLE']
@@ -81,7 +81,7 @@ def test_Landsat_C01_SR_image_properties():
 def test_Landsat_C01_SR_scaling():
     image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
     output = utils.point_image_value(
-        openet.lai.Landsat_C01_SR(image_id).input_img, xy=TEST_POINT)
+        openet.lai.Landsat_C01_SR(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 
@@ -101,13 +101,13 @@ def test_Landsat_C01_SR_scaling():
     ]
 )
 def test_Landsat_C01_TOA_band_names(image_id):
-    output = openet.lai.Landsat_C01_TOA(image_id).input_img.bandNames().getInfo()
+    output = openet.lai.Landsat_C01_TOA(image_id).image.bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS)
 
 
 def test_Landsat_C01_TOA_image_properties():
     image_id = 'LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
-    output = openet.lai.Landsat_C01_TOA(image_id).input_img.getInfo()
+    output = openet.lai.Landsat_C01_TOA(image_id).image.getInfo()
     assert output['properties']['system:time_start']
     assert output['properties']['SOLAR_ZENITH_ANGLE']
     assert output['properties']['SOLAR_AZIMUTH_ANGLE']
@@ -117,7 +117,7 @@ def test_Landsat_C01_TOA_image_properties():
 def test_Landsat_C01_TOA_scaling():
     image_id='LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
     output = utils.point_image_value(
-        openet.lai.Landsat_C01_TOA(image_id).input_img, xy=TEST_POINT)
+        openet.lai.Landsat_C01_TOA(image_id).image, xy=TEST_POINT)
     pprint.pprint(output)
     assert output['nir'] > 1000
 
@@ -137,20 +137,20 @@ def test_Landsat_C01_TOA_scaling():
     ]
 )
 def test_Landsat_band_names(image_id):
-    output = openet.lai.Landsat(image_id).input_img.bandNames().getInfo()
+    output = openet.lai.Landsat(image_id).image.bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS)
 
 
 # CGM - sensor is not currently being set as a class property
 # def test_Landsat_sensor(image_id='LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'):
-#     assert openet.lai.Landsat(image_id).input_img.sensor == image_id.split('/')[1]
+#     assert openet.lai.Landsat(image_id).image.sensor == image_id.split('/')[1]
 
 
 def test_Model_init():
     input_img = ee.Image.constant([0.1, 0.1, 0.1, 0.3, 0.1, 0.1, 1])\
         .rename(DEFAULT_BANDS)
-    image_obj = openet.lai.Model(input_img=input_img, sensor='LC08')
-    assert set(image_obj.input_img.bandNames().getInfo()) == set(DEFAULT_BANDS)
+    image_obj = openet.lai.Model(image=input_img, sensor='LC08')
+    assert set(image_obj.image.bandNames().getInfo()) == set(DEFAULT_BANDS)
     assert image_obj.sensor == 'LC08'
 
 
@@ -181,7 +181,7 @@ def test_Model_lai():
 
 def test_getVIs_bands():
     # Check that the expected bands are added to the output image
-    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image
     output = openet.lai.landsat.getVIs(input_img).bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS) | {'NDVI', 'NDWI'}
 
@@ -217,7 +217,7 @@ def test_getVIs_constant_values(blue, red, nir, swir1, ndvi, ndwi, evi, sr,
 def test_getVIs_point_values(image_id, xy, ndvi, ndwi, evi, sr, tol=0.0001):
     # Check that the VI calculations are valid at specific points
     output = utils.point_image_value(openet.lai.landsat.getVIs(
-        openet.lai.Landsat(image_id=image_id).input_img), xy=xy)
+        openet.lai.Landsat(image_id=image_id).image), xy=xy)
     assert abs(output['NDVI'] - ndvi) <= tol
     assert abs(output['NDWI'] - ndwi) <= tol
 
@@ -228,7 +228,7 @@ def test_getTrainImg_bands():
     vi_bands = {'NDVI', 'NDWI'}
     training_bands = {'biome2', 'lon', 'lat', 'sun_zenith', 'sun_azimuth', 'mask'}
     target_bands = input_bands | vi_bands | training_bands
-    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image
     output_bands = openet.lai.landsat.getTrainImg(input_img).bandNames().getInfo()
     assert target_bands == set(list(output_bands))
 
@@ -255,7 +255,7 @@ def test_getTrainImg_bands():
     ]
 )
 def test_getTrainImg_nlcd_year(date, nlcd_band):
-    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img\
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image\
         .set({'system:time_start': ee.Date(date).millis()})
     output = openet.lai.landsat.getTrainImg(input_img).get('nlcd_year').getInfo()
     assert output == nlcd_band
@@ -269,7 +269,7 @@ def test_getTrainImg_nlcd_year(date, nlcd_band):
     ]
 )
 def test_getTrainImg_property_values(image_id, xy, azimuth, zenith):
-    input_img = openet.lai.Landsat(image_id=image_id).input_img
+    input_img = openet.lai.Landsat(image_id=image_id).image
     output = utils.point_image_value(
         openet.lai.landsat.getTrainImg(input_img), xy=xy)
     assert abs(output['lon'] - xy[0]) <= 0.0001
@@ -293,7 +293,7 @@ def test_getTrainImg_property_values(image_id, xy, azimuth, zenith):
 )
 def test_getTrainImg_biome_point_values(image_id, xy, nlcd, biome2):
     output = utils.point_image_value(openet.lai.landsat.getTrainImg(
-        openet.lai.Landsat(image_id=image_id).input_img), xy=xy)
+        openet.lai.Landsat(image_id=image_id).image), xy=xy)
     assert output['biome2'] == biome2
 
 
@@ -386,7 +386,7 @@ def test_getRFModel_sensor(sensor, biome):
 )
 def test_getLAIforBiome_point_values(image_id, xy, biome, expected, tol=0.0001):
     training_img = openet.lai.landsat.getTrainImg(
-        openet.lai.Landsat(image_id=image_id).input_img)
+        openet.lai.Landsat(image_id=image_id).image)
     sensor = image_id.split('/')[-1][:4]
     rf_model = openet.lai.landsat.getRFModel(sensor, biome)
     output = utils.point_image_value(
@@ -395,7 +395,7 @@ def test_getLAIforBiome_point_values(image_id, xy, biome, expected, tol=0.0001):
 
 
 def test_getLAIImage_band_name():
-    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).input_img
+    input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image
     output = openet.lai.landsat.getLAIImage(input_img, TEST_SENSOR, nonveg=1)\
         .bandNames().getInfo()
     assert set(output) == {'LAI', 'QA'}
@@ -415,7 +415,7 @@ def test_getLAIImage_band_name():
 def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
     output = utils.point_image_value(
         openet.lai.landsat.getLAIImage(
-            openet.lai.Landsat(image_id=image_id).input_img,
+            openet.lai.Landsat(image_id=image_id).image,
             sensor=image_id.split('/')[1], nonveg=1),
         xy=xy)
     assert abs(output['LAI'] - expected) <= tol

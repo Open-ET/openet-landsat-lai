@@ -566,7 +566,7 @@ def main(ini_path=None, overwrite_flag=False, delay_time=0, gee_key_file=None,
                 # CGM: We could pre-compute (or compute once and then save)
                 #   the crs, transform, and shape since they should (will?) be
                 #   the same for each wrs2 tile
-                output_info = utils.get_info(ee.Image(image_id).select(['B2']))
+                output_info = utils.get_info(ee.Image(image_id).select([2]))
                 transform = '[{}]'.format(
                     ','.join(map(str, output_info['bands'][0]['crs_transform'])))
 

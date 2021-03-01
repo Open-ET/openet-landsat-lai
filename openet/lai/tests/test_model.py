@@ -19,28 +19,6 @@ def test_ee_init():
     assert ee.Number(1).getInfo() == 1
 
 
-def test_Model_init():
-    input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
-    image_obj = openet.lai.Model(image=input_img, sensor='LC08')
-    assert set(image_obj.image.bandNames().getInfo()) == set(DEFAULT_BANDS)
-    assert image_obj.sensor == 'LC08'
-
-
-def test_Model_image_type_exception():
-    with pytest.raises(Exception):
-        openet.lai.Model(image=TEST_IMAGE_ID, sensor='DEADBEEF')
-
-
-def test_Model_sensor_exception():
-    with pytest.raises(Exception):
-        input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
-        openet.lai.Model(image=input_img, sensor='DEADBEEF')
-
-
-def test_Model_lai():
-    assert True
-
-
 def test_getVIs_bands():
     # Check that the expected bands are added to the output image
     input_img = openet.lai.Landsat(image_id=TEST_IMAGE_ID).image
@@ -278,9 +256,53 @@ def test_getLAIImage_band_name():
     ]
 )
 def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
-    output = utils.point_image_value(
-        openet.lai.model.getLAIImage(
-            openet.lai.Landsat(image_id=image_id).image,
-            sensor=image_id.split('/')[1], nonveg=1),
-        xy=xy)
+    input_img = openet.lai.Landsat(image_id=image_id).image
+    output_img = openet.lai.model.getLAIImage(
+        input_img, sensor=image_id.split('/')[1], nonveg=1)
+    output = utils.point_image_value(output_img, xy=xy)
     assert abs(output['LAI'] - expected) <= tol
+
+
+# CGM - Until functions are moved into Model class, test Model after functions
+def test_Model_init():
+    input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
+    image_obj = openet.lai.Model(image=input_img, sensor='LC08')
+    assert set(image_obj.image.bandNames().getInfo()) == set(DEFAULT_BANDS)
+    assert image_obj.sensor == 'LC08'
+
+
+def test_Model_image_type_exception():
+    with pytest.raises(Exception):
+        openet.lai.Model(image=TEST_IMAGE_ID, sensor='DEADBEEF')
+
+
+def test_Model_sensor_exception():
+    with pytest.raises(Exception):
+        input_img = ee.Image.constant(DEFAULT_VALUES).rename(DEFAULT_BANDS)
+        openet.lai.Model(image=input_img, sensor='DEADBEEF')
+
+
+@pytest.mark.parametrize(
+    "image_id, xy, expected",
+    [
+        # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
+        # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
+        # Folsom Lake
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],
+        # Other collections
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
+        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
+
+    ]
+)
+def test_Model_lai_point_values(image_id, xy, expected, tol=0.0001):
+    input_img = openet.lai.Landsat(image_id=image_id).image
+    output_img = openet.lai.Model(
+        input_img, sensor=image_id.split('/')[1]).lai(nonveg=1)
+    output = utils.point_image_value(output_img, xy=xy)
+    assert abs(output['LAI'] - expected) <= tol
+
+
+# TODO: Add a test for nonveg=0

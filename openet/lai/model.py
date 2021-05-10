@@ -9,6 +9,7 @@ class Model:
         ----------
         image : ee.Image
             Prepped input image.  Must have the following bands and properties.
+            Reflectance values must be scaled from 0-10000, not 0-1.
             Bands: 'green', 'red', 'nir', 'swir1', 'pixel_qa'
             Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE',
                         'SOLAR_AZIMUTH_ANGLE'

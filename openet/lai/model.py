@@ -186,7 +186,7 @@ def getRFModel(sensor, biome):
     # CM - The "projects/earthengine-legacy/assets/" probably isn't needed
     training_coll_id = 'projects/earthengine-legacy/assets/' \
                        'projects/openet/lai/training/' \
-                       'LAI_train_sample_all_v10_1_final'
+                       'LAI_train_sample_unsat_v10_1_final'
     training_coll = ee.FeatureCollection(training_coll_id) \
         .filterMetadata('sensor', 'equals', sensor)
 

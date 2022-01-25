@@ -265,8 +265,11 @@ def getTrainImg(image):
         for src_year in src_years})
     nlcd_year = nlcd_dict.get(
         ee.Date(image.get('system:time_start')).get('year').format('%d'))
-    nlcd_img = ee.ImageCollection('USGS/NLCD') \
-        .filter(ee.Filter.eq('system:index', ee.String('NLCD').cat(nlcd_year))) \
+    # nlcd_img = ee.ImageCollection('USGS/NLCD') \
+    #     .filter(ee.Filter.eq('system:index', ee.String('NLCD').cat(nlcd_year))) \
+    #     .first()
+    nlcd_img = ee.ImageCollection('USGS/NLCD_RELEASES/2016_REL') \
+        .filter(ee.Filter.eq('system:index', nlcd_year)) \
         .first()
 
     # CM - Add the NLCD year as a property to track which year was used

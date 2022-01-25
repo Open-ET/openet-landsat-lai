@@ -255,7 +255,9 @@ def getTrainImg(image):
         '2008': ['2008', '2009'],
         '2011': ['2010', '2011', '2012'],
         '2013': ['2013', '2014'],
-        '2016': ['2015', '2016', '2017', '2018', '2019', '2020', '2021'],
+        '2016': ['2015', '2016', '2017', '2018', '2019', '2020', '2021', '2022'],
+        # '2016': ['2015', '2016', '2017', ],
+        # '2016': ['2018', '2019', '2020', '2021', '2022'],
     }
     nlcd_dict = ee.Dictionary({
         src_year: tgt_year
@@ -275,8 +277,6 @@ def getTrainImg(image):
     image = getVIs(image)
 
     # Map NLCD codes to biomes
-    # CM - Added NLCD codes 11 and 12
-    # CM - Switched from lists to a dictionary to improve readability
     nlcd_biom_remap = {
         11: 0, 12: 0,
         21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
@@ -291,20 +291,20 @@ def getTrainImg(image):
 
     # Add other bands
 
-    # CM - Map all bands to mask image to avoid clip or updateMask calls
+    # Map all bands to mask image to avoid clip or updateMask calls
     mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
-    image = image.addBands(mask_img.add(biom_img).rename('biome2')) \
-        .addBands(mask_img.add(ee.Image.pixelLonLat().select(['longitude']))
-                    .rename(['lon'])) \
-        .addBands(mask_img.add(ee.Image.pixelLonLat().select(['latitude']))
-                    .rename(['lat'])) \
-        .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
-                    .rename(['sun_zenith'])) \
-        .addBands(mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
-                    .rename(['sun_azimuth'])) \
-        .addBands(mask_img.add(1))
+    image = image.addBands([
+        mask_img.add(biom_img).rename('biome2'),
+        mask_img.add(ee.Image.pixelLonLat().select(['longitude'])).rename(['lon']),
+        mask_img.add(ee.Image.pixelLonLat().select(['latitude'])).rename(['lat']),
+        mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
+            .rename(['sun_zenith']),
+        mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
+            .rename(['sun_azimuth']),
+        mask_img.add(1)
+    ])
 
-    # # CM - Test adding all bands directly and the calling updateMask to clip
+    # # Test adding all bands directly and the calling updateMask to clip
     # mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
     # image = image.addBands(biom_img.rename('biome2')) \
     #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon'])) \

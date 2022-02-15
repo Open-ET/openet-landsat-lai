@@ -24,7 +24,7 @@ class Model:
         """
         if type(image) is not ee.Image:
             raise ValueError(f'unsupported input_img type: {type(image)}')
-        if sensor not in ['LC08', 'LE07', 'LT05']:
+        if sensor not in ['LT05', 'LE07', 'LC08', 'LC09']:
             raise ValueError(f'unsupported sensor: {sensor}')
 
         self.image = image

@@ -165,15 +165,10 @@ def test_getTrainImg_biome_point_values(image_id, xy, nlcd, biome2):
 @pytest.mark.parametrize(
     "sensor, biome",
     [
-        ['LC08', 0],
-        ['LE07', 0],
         ['LT05', 0],
-        # ['LC08', 1],
-        # ['LE07', 1],
-        # ['LT05', 1],
-        # ['LC08', 2],
-        # ['LE07', 2],
-        # ['LT05', 2],
+        ['LE07', 0],
+        ['LC08', 0],
+        ['LC09', 0],
     ]
 )
 def test_getRFModel_sensor(sensor, biome):

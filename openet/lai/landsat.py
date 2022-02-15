@@ -16,7 +16,7 @@ class Landsat(object):
     def __new__(cls, image_id):
         if type(image_id) is not str:
             raise ValueError('unsupported input type')
-        elif re.match('LANDSAT/L[TEC]0[4578]/C02/T1_L2', image_id):
+        elif re.match('LANDSAT/L[TEC]0[45789]/C02/T1_L2', image_id):
             return Landsat_C02_SR(image_id)
         elif re.match('LANDSAT/L[TEC]0[4578]/C01/T1_SR', image_id):
             return Landsat_C01_SR(image_id)
@@ -34,7 +34,7 @@ class Landsat_C02_SR(Model):
         if type(image_id) is not str:
             raise ValueError('unsupported input type')
         elif (image_id.startswith('LANDSAT/') and
-                not re.match('LANDSAT/L[TEC]0[4578]/C02/T1_L2', image_id)):
+                not re.match('LANDSAT/L[TEC]0[45789]/C02/T1_L2', image_id)):
             raise ValueError('unsupported collection ID')
         raw_image = ee.Image(image_id)
 
@@ -51,6 +51,7 @@ class Landsat_C02_SR(Model):
             'LANDSAT_5': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'QA_PIXEL'],
             'LANDSAT_7': ['SR_B2', 'SR_B3', 'SR_B4', 'SR_B5', 'QA_PIXEL'],
             'LANDSAT_8': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
+            'LANDSAT_9': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
         })
         output_bands = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
 

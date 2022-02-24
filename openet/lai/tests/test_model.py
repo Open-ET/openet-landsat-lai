@@ -85,14 +85,17 @@ def test_getTrainImg_bands():
         ['2015-01-01', '2016'],
         # Check the supported start/end years
         ['1997-01-01', '2001'],
-        ['2020-01-01', '2016'],
-        ['2021-01-01', '2016'],
-        ['2022-01-01', '2016'],
+        ['2017-01-01', '2016'],
+        ['2018-01-01', '2019'],
+        ['2019-01-01', '2019'],
+        ['2020-01-01', '2019'],
+        ['2021-01-01', '2019'],
+        ['2022-01-01', '2019'],
         # # What should happen for years outside the supported range
         # # Currently this will raise a EEException
         # # (about the dictionary not having the correct key)
-        # ['1996-01-01', '1997'],
-        # ['2023-01-01', '2016'],
+        pytest.param('1996-01-01', '1997', marks=pytest.mark.xfail),
+        pytest.param('2023-01-01', '2019', marks=pytest.mark.xfail),
     ]
 )
 def test_getTrainImg_nlcd_year(date, nlcd_band):

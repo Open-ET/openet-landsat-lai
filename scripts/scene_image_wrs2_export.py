@@ -400,7 +400,7 @@ def main(ini_path=None, overwrite_flag=False,
     # processed_wrs2_tiles = []
     for export_info in sorted(export_list, key=lambda i: i['index'],
                               reverse=reverse_flag):
-        logging.debug(f'{export_info["index"]}')
+        logging.info(f'{export_info["index"]}')
         # logging.debug('  {} - {}'.format(
         #     export_info['index'], ', '.join(export_info['wrs2_tiles'])))
         tile_count = len(export_info['wrs2_tiles'])

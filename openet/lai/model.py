@@ -239,7 +239,7 @@ def getLAIforBiome(train_img, biome, rf_model):
 
 
 def getTrainImg(image):
-    """Function that takes n Landsat image and prepare feature bands
+    """Function that takes a Landsat image and prepare feature bands
 
     Parameters
     ----------
@@ -250,29 +250,38 @@ def getTrainImg(image):
     ee.Image
 
     """
+    nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2019_REL/NLCD')
+    nlcd_year_max = 2019
+    # nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2016_REL')
+    # nlcd_year_max = 2019
+    # TODO: Compute last available year in NLCD collection
+    # nlcd_year_max = ee.Date(
+    #         nlcd_coll.limit(1, 'system:time_start', False).first().get('system:time_start'))
+    #     .get('year')
 
-    # Get NLCD for corresponding year
-    # CM - I couldn't decide if it was better to use ints or strings
-    nlcd_dict = {
-        '2001': ['1997', '1998', '1999', '2000', '2001', '2002'],
+    # Get NLCD year for the image year
+    nlcd_year_dict = {
+        '2001': ['1999', '2000', '2001', '2002'],
         '2004': ['2003', '2004', '2005'],
         '2006': ['2006', '2007'],
         '2008': ['2008', '2009'],
         '2011': ['2010', '2011', '2012'],
         '2013': ['2013', '2014'],
         '2016': ['2015', '2016', '2017'],
-        '2019': ['2018', '2019', '2020', '2021', '2022'],
+        '2019': ['2018', '2019', '2020'],
     }
-    nlcd_dict = ee.Dictionary({
+    nlcd_year_dict = ee.Dictionary({
         src_year: tgt_year
-        for tgt_year, src_years in nlcd_dict.items()
+        for tgt_year, src_years in nlcd_year_dict.items()
         for src_year in src_years})
-    nlcd_year = nlcd_dict.get(
-        ee.Date(image.get('system:time_start')).get('year').format('%d'))
-    nlcd_img = ee.ImageCollection(f'USGS/NLCD_RELEASES/2019_REL/NLCD')\
-        .filterMetadata('system:index', 'equals', nlcd_year)\
-        .first()
-    #     .select(['landcover'])
+
+    # Map later years to last available year in NLCD dataset
+    #   For now, don't remap earlier years and set first available year to 1999
+    nlcd_year = ee.Date(image.get('system:time_start')).get('year')\
+        .min(nlcd_year_max)
+    nlcd_year = nlcd_year_dict.get(nlcd_year.format('%d'))
+    nlcd_img = nlcd_coll.filterMetadata('system:index', 'equals', nlcd_year)\
+        .first().select(['landcover'])
 
     # CM - Add the NLCD year as a property to track which year was used
     #   This probably isn't needed long term but it is useful for testing
@@ -283,16 +292,10 @@ def getTrainImg(image):
 
     # Map NLCD codes to biomes
     nlcd_biom_remap = {
-        11: 0, 12: 0,
-        21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
-        41: 1, 42: 2, 43: 3, 52: 4,
-        71: 5, 81: 5, 82: 6, 90: 7, 95: 8,
+        11: 0, 12: 0, 21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
+        41: 1, 42: 2, 43: 3, 52: 4, 71: 5, 81: 5, 82: 6, 90: 7, 95: 8,
     }
-    # fromList = [21, 22, 23, 24, 31, 41, 42, 43, 52, 71, 81, 82, 90, 95]
-    # toList = [0, 0, 0, 0, 0, 1, 2, 3, 4, 5, 5, 6, 7, 8]
     biom_img = nlcd_img.remap(*zip(*nlcd_biom_remap.items()) )
-    # biom_img = nlcd_img.remap(
-    #     list(nlcd_biom_remap.keys()), list(nlcd_biom_remap.values()))
 
     # Add other bands
 

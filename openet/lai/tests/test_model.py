@@ -84,18 +84,18 @@ def test_getTrainImg_bands():
         ['2014-12-31', '2013'],
         ['2015-01-01', '2016'],
         # Check the supported start/end years
-        ['1997-01-01', '2001'],
         ['2017-01-01', '2016'],
         ['2018-01-01', '2019'],
         ['2019-01-01', '2019'],
         ['2020-01-01', '2019'],
         ['2021-01-01', '2019'],
         ['2022-01-01', '2019'],
+        ['2023-01-01', '2019'],
         # # What should happen for years outside the supported range
         # # Currently this will raise a EEException
         # # (about the dictionary not having the correct key)
-        pytest.param('1996-01-01', '1997', marks=pytest.mark.xfail),
-        pytest.param('2023-01-01', '2019', marks=pytest.mark.xfail),
+        pytest.param('1998-01-01', '2001', marks=pytest.mark.xfail),
+        # pytest.param('2023-01-01', '2019', marks=pytest.mark.xfail),
     ]
 )
 def test_getTrainImg_nlcd_year(date, nlcd_band):
@@ -198,18 +198,31 @@ def test_getRFModel_sensor(sensor, biome):
 @pytest.mark.parametrize(
     "image_id, xy, biome, expected",
     [
-        # Test values for minLeafPopulation=50 & variablesPerSplit=5
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 4.26614],             # NLCD 82
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 4.26614], # NLCD 82
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.96222], # NLCD 11 (Folsom Lake)
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.29583], # NLCD 41
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.77515, 38.81689], 2, 5.35341], # NLCD 42
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.76897, 38.82505], 3, 5.21886], # NLCD 43
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.93452], # NLCD 52
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.45943], # NLCD 71
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.42295], # NLCD 81
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.25980, 38.89904], 7, 5.14200], # NLCD 90
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.63588, 38.90885], 8, 4.63967], # NLCD 95
+        # Test values for LAI_train_sample_unsat_v10_1_final, numberOfTrees=100,
+        #   minLeafPopulation=50, variablesPerSplit=5
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 3.644629],             # NLCD 82
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 3.644629], # NLCD 82
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.769142], # NLCD 11 (Folsom Lake)
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.241524], # NLCD 41
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.77515, 38.81689], 2, 3.320077], # NLCD 42
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.76897, 38.82505], 3, 3.102253], # NLCD 43
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.895867], # NLCD 52
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.466429], # NLCD 71
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.426706], # NLCD 81
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.25980, 38.89904], 7, 2.751934], # NLCD 90
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.63588, 38.90885], 8, 2.774822], # NLCD 95
+        # # Test values for minLeafPopulation=50 & variablesPerSplit=5
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 4.26614],             # NLCD 82
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 4.26614], # NLCD 82
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.96222], # NLCD 11 (Folsom Lake)
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.29583], # NLCD 41
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.77515, 38.81689], 2, 5.35341], # NLCD 42
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.76897, 38.82505], 3, 5.21886], # NLCD 43
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.93452], # NLCD 52
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.45943], # NLCD 71
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.42295], # NLCD 81
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.25980, 38.89904], 7, 5.14200], # NLCD 90
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-120.63588, 38.90885], 8, 4.63967], # NLCD 95
         # # Test values for minLeafPopulation=20 & variablesPerSplit=8
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.52650, 38.73990], 6, 4.3485], # NLCD 82
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.4161], # NLCD 11 (Folsom Lake)
@@ -243,16 +256,20 @@ def test_getLAIImage_band_name():
 @pytest.mark.parametrize(
     "image_id, xy, expected",
     [
-        # Test values for minLeafPopulation=20 & variablesPerSplit=8
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
-        # Test values for minLeafPopulation=20 & variablesPerSplit=8
-        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
-        # Folsom Lake
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],
-        # Other collections
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
-        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
-
+        # Test values for LAI_train_sample_unsat_v10_1_final, numberOfTrees=100,
+        #   minLeafPopulation=50, variablesPerSplit=5
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 3.644629],
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],  # Folsom Lake
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 3.630114],
+        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.454275],
+        # # Test values for minLeafPopulation=50 & variablesPerSplit=5
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
+        # # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        # # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],  # Folsom Lake
+        # # Other collections
+        # ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
+        # ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
     ]
 )
 def test_getLAIImage_point_values(image_id, xy, expected, tol=0.0001):
@@ -285,15 +302,21 @@ def test_Model_sensor_exception():
 @pytest.mark.parametrize(
     "image_id, xy, expected",
     [
-        # Test values for minLeafPopulation=20 & variablesPerSplit=8
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
+        # Test values for LAI_train_sample_unsat_v10_1_final, numberOfTrees=100,
+        #   minLeafPopulation=50, variablesPerSplit=5
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 3.644629],
         # Test values for minLeafPopulation=20 & variablesPerSplit=8
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
-        # Folsom Lake
-        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],
-        # Other collections
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
-        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
+        ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],  # Folsom Lake
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 3.630114],
+        ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.454275],
+        # # Test values for minLeafPopulation=50 & variablesPerSplit=5
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.266140569415043],
+        # # Test values for minLeafPopulation=20 & variablesPerSplit=8
+        # # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 4.3485],
+        # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', [-121.1445, 38.7205], 0],  # Folsom Lake
+        # ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 4.233995947605771],
+        # ['LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716', TEST_POINT, 3.309368965091951],
 
     ]
 )

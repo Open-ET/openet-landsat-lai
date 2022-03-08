@@ -253,7 +253,7 @@ def getTrainImg(image):
     nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2019_REL/NLCD')
     nlcd_year_max = 2019
     # nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2016_REL')
-    # nlcd_year_max = 2019
+    # nlcd_year_max = 2016
     # TODO: Compute last available year in NLCD collection
     # nlcd_year_max = ee.Date(
     #         nlcd_coll.limit(1, 'system:time_start', False).first().get('system:time_start'))

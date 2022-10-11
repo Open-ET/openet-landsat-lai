@@ -57,9 +57,8 @@ def main(ini_path=None, overwrite_flag=False,
     log_tasks : bool, optional
         If True, log task information to the datastore (the default is True).
     recent_days : int, str, optional
-        Limit start/end date range to this many days before the current date
-        (the default is 0 which is equivalent to not setting the parameter and
-         will use the INI start/end date directly).
+        Limit start/end date range to this many days before the current date.
+        The default is None which will use the INI start/end date directly.
     start_dt : datetime, optional
         Override the start date in the INI file
         (the default is None which will use the INI start date).
@@ -74,9 +73,7 @@ def main(ini_path=None, overwrite_flag=False,
     """
     logging.info('\nExport Landsat LAI images')
 
-    # CGM - Which format should we use for the WRS2 tile?
     wrs2_tile_fmt = 'p{:03d}r{:03d}'
-    # wrs2_tile_fmt = '{:03d}{:03d}'
     wrs2_tile_re = re.compile('p?(\d{1,3})r?(\d{1,3})')
 
     # List of path/rows to skip
@@ -272,8 +269,12 @@ def main(ini_path=None, overwrite_flag=False,
     elif recent_days:
         logging.debug('\nOverriding INI "start_date" and "end_date" parameters')
         logging.debug(f'  Recent days: {recent_days}')
-        end_dt = today_dt - datetime.timedelta(days=1)
-        start_dt = today_dt - datetime.timedelta(days=recent_days)
+        recent_days = list(sorted(utils.parse_int_set(recent_days)))
+        # Assume that a single day value should actually be a range?
+        if len(recent_days) == 1:
+            recent_days = list(range(1, recent_days[0]))
+        end_dt = today_dt - datetime.timedelta(days=recent_days[0])
+        start_dt = today_dt - datetime.timedelta(days=recent_days[-1])
         start_date = start_dt.strftime('%Y-%m-%d')
         end_date = end_dt.strftime('%Y-%m-%d')
     else:

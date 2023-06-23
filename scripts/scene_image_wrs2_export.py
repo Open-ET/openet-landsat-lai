@@ -19,6 +19,11 @@ import openet.core.utils as utils
 import openet.ssebop as model
 # import openet.disalexi as model
 
+# try:
+#     from importlib import metadata
+# except ImportError:  # for Python<3.8
+#     import importlib_metadata as metadata
+
 TOOL_NAME = 'lai_image_wrs2_export'
 # TOOL_NAME = os.path.basename(__file__)
 TOOL_VERSION = '0.3.0'
@@ -882,6 +887,10 @@ def main(ini_path=None, overwrite_flag=False,
                     'image_id': image_id,
                     'model_name': model_name,
                     'model_version': openet.lai.__version__,
+                    # CGM - We will need something like this for models where the version
+                    #   number is set in the pyproject.toml and not in the init (i.e. SIMS)
+                    # 'model_name': metadata.metadata(model)['Name'],
+                    # 'model_version': metadata.metadata(model)['Version'],
                     'scale_factor': 1.0 / scale_factor,
                     'scene_id': scene_id,
                     'tool_name': TOOL_NAME,
@@ -929,7 +938,7 @@ def main(ini_path=None, overwrite_flag=False,
                 # Build export tasks
                 max_retries = 4
                 task = None
-                for i in range(1, max_retries):
+                for i in range(1, max_retries+1):
                     try:
                         if destination == 'ASSET':
                             task = ee.batch.Export.image.toAsset(
@@ -956,13 +965,14 @@ def main(ini_path=None, overwrite_flag=False,
                                 formatOptions={'cloudOptimized': True, 'noData': nodata},
                                 # pyramidingPolicy='mean',
                             )
+                        break
                     # except ee.ee_exception.EEException as e:
                     except Exception as e:
                         if ('Earth Engine memory capacity exceeded' in str(e) or
                                 'Earth Engine capacity exceeded' in str(e)):
                             logging.info(f'  Rebuilding task ({i}/{max_retries})')
                             logging.debug(f'  {e}')
-                            time.sleep(i ** 2)
+                            time.sleep(i ** 3)
                         else:
                             logging.warning(f'Unhandled exception\n{e}')
                             break
@@ -980,7 +990,7 @@ def main(ini_path=None, overwrite_flag=False,
                     except Exception as e:
                         logging.info(f'  Resending query ({i}/{max_retries})')
                         logging.debug(f'  {e}')
-                        time.sleep(i ** 2)
+                        time.sleep(i ** 3)
                 # # Not using ee_task_start since it doesn't return the task object
                 # utils.ee_task_start(task)
 
@@ -1006,9 +1016,10 @@ def main(ini_path=None, overwrite_flag=False,
                     #         properties[k] = v
 
                     max_retries = 4
-                    for i in range(1, max_retries):
+                    for i in range(1, max_retries+1):
                         try:
                             blob.upload_from_string(json.dumps(properties))
+                            break
                         except Exception as e:
                             logging.info(f'  JSON properties file not written ({i}/{max_retries})')
                             logging.debug(f'  {e}')
@@ -1019,9 +1030,10 @@ def main(ini_path=None, overwrite_flag=False,
                 if log_tasks:
                     # logging.debug('  Writing datastore entity')
                     try:
-                        task_obj = datastore.Entity(key=datastore_client.key(
-                            'Task', task.status()['id']),
-                            exclude_from_indexes=['properties'])
+                        task_obj = datastore.Entity(
+                            key=datastore_client.key('Task', task.status()['id']),
+                            exclude_from_indexes=['properties']
+                        )
                         for k, v in task.status().items():
                             task_obj[k] = v
                         # task_obj['date'] = datetime.datetime.today() \
@@ -1044,7 +1056,8 @@ def main(ini_path=None, overwrite_flag=False,
                 ready_task_count += 1
                 ready_task_count = delay_task(
                     delay_time=delay_time, task_max=ready_task_max,
-                    task_count=ready_task_count)
+                    task_count=ready_task_count
+                )
 
                 logging.debug('')
 

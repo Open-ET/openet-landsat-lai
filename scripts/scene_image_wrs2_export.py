@@ -16,13 +16,13 @@ import openet.lai
 import openet.core
 import openet.core.utils as utils
 # CGM - Using SSEBop model for building image ID list (for now)
-import openet.ssebop as model
-# import openet.disalexi as model
+import openet.ssebop as openet_model
+# import openet.disalexi as openet_model
 
-# try:
-#     from importlib import metadata
-# except ImportError:  # for Python<3.8
-#     import importlib_metadata as metadata
+try:
+    from importlib import metadata
+except ImportError:  # for Python<3.8
+    import importlib_metadata as metadata
 
 TOOL_NAME = 'lai_image_wrs2_export'
 # TOOL_NAME = os.path.basename(__file__)
@@ -154,6 +154,8 @@ def main(
     except Exception as e:
         raise e
     logging.info(f'  ET Model: {model_name}')
+
+    # model_package_name = openet.lai.__name__.replace('.', '-')
 
     try:
         study_area_coll_id = str(ini['INPUTS']['study_area_coll'])
@@ -352,7 +354,8 @@ def main(
         utm_zones = sorted(list(set([int(x[:2]) for x in mgrs_tiles])))
         logging.info(f'  utm_zones:  {", ".join(map(str, utm_zones))}')
 
-    today_dt = datetime.now()
+    today_dt = datetime.today()
+    # today_dt = datetime.now(timezone.utc)
     today_dt = today_dt.replace(hour=0, minute=0, second=0, microsecond=0)
     if start_dt and end_dt:
         # Attempt to use the function start/end dates
@@ -442,8 +445,7 @@ def main(
         logging.info(f'\nFolder does not exist and will be built'
                       f'\n  {scene_coll_id.rsplit("/", 1)[0]}')
         input('Press ENTER to continue')
-        ee.data.createAsset({'type': 'FOLDER'},
-                            scene_coll_id.rsplit('/', 1)[0])
+        ee.data.createAsset({'type': 'FOLDER'}, scene_coll_id.rsplit('/', 1)[0])
     if not ee.data.getInfo(scene_coll_id):
         logging.info(f'\nExport collection does not exist and will be built'
                      f'\n  {scene_coll_id}')
@@ -478,7 +480,7 @@ def main(
 
     # Check the storage bucket
     # CGM - We don't really need to connect to the bucket here
-    #   but it maybe useful for checking that the bucket exists
+    #   but it may be useful for checking that the bucket exists
     bucket = None
     bucket_folder = None
     if destination == 'BUCKET':
@@ -554,7 +556,7 @@ def main(
             # Adding a buffer helps prevent that tile but causes other ones to
             #   have the same problem
             logging.debug('  Getting list of available model images')
-            model_obj = model.Collection(
+            model_obj = openet_model.Collection(
                 collections=collections,
                 cloud_cover_max=float(ini['INPUTS']['cloud_cover']),
                 start_date=year_start_date,
@@ -696,7 +698,7 @@ def main(
             #
             # # Get the full Landsat collection
             # # Collection end date is exclusive
-            # model_obj = model.Collection(
+            # model_obj = openet_model.Collection(
             #     collections=collections,
             #     cloud_cover_max=float(ini['INPUTS']['cloud_cover']),
             #     start_date=start_date,
@@ -945,8 +947,7 @@ def main(
                     'image_id': image_id,
                     'model_name': model_name,
                     'model_version': openet.lai.__version__,
-                    # CGM - We will need something like this for models where the version
-                    #   number is set in the pyproject.toml and not in the init (i.e. SIMS)
+                    # CGM - We will need something like this when we switch to a pyproject.toml
                     # 'model_name': metadata.metadata(model)['Name'],
                     # 'model_version': metadata.metadata(model)['Version'],
                     'scale_factor': 1.0 / scale_factor,
@@ -967,9 +968,10 @@ def main(
                 #   it easier to pass through to other models/calculations
                 properties['landsat_lai_version'] = openet.lai.__version__
 
-                # CGM - Tracking the OpenET MODEL version used to build the scene lists
-                properties[f'{model.MODEL_NAME.lower()}_version'] = model.__version__
-                # properties['sims_version'] = model.__version__
+                # Tracking the OpenET MODEL version used to build the scene lists
+                src_model_pkg_name = openet_model.__name__.replace('.', '-').lower()
+                properties[f'src_model_name'] = metadata.metadata(src_model_pkg_name)['Name']
+                properties[f'src_model_version'] = metadata.metadata(src_model_pkg_name)['Version']
 
                 output_img = output_img.set(properties)
 

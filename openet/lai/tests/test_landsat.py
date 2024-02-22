@@ -21,7 +21,6 @@ def test_ee_init():
 @pytest.mark.parametrize(
     'image_id',
     [
-        # Landsat 4 is not currently supported
         # 'LANDSAT/LT04/C02/T1_L2/LT04_044033_19830812',
         'LANDSAT/LT05/C02/T1_L2/LT05_044033_20110716',
         'LANDSAT/LE07/C02/T1_L2/LE07_044033_20170708',
@@ -45,8 +44,7 @@ def test_Landsat_C02_SR_image_properties():
 # CGM - The C02 SR images are being scaled to match the C01 SR
 def test_Landsat_C02_SR_scaling():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
-    output = utils.point_image_value(
-        openet.lai.Landsat_C02_SR(image_id).image, xy=TEST_POINT)
+    output = utils.point_image_value(openet.lai.Landsat_C02_SR(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 
@@ -81,8 +79,7 @@ def test_Landsat_C01_SR_image_properties():
 
 def test_Landsat_C01_SR_scaling():
     image_id = 'LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716'
-    output = utils.point_image_value(
-        openet.lai.Landsat_C01_SR(image_id).image, xy=TEST_POINT)
+    output = utils.point_image_value(openet.lai.Landsat_C01_SR(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 
@@ -118,8 +115,7 @@ def test_Landsat_C01_TOA_image_properties():
 # CGM - The C01 TOA images are being scaled to match the C01 SR
 def test_Landsat_C01_TOA_scaling():
     image_id='LANDSAT/LC08/C01/T1_TOA/LC08_044033_20170716'
-    output = utils.point_image_value(
-        openet.lai.Landsat_C01_TOA(image_id).image, xy=TEST_POINT)
+    output = utils.point_image_value(openet.lai.Landsat_C01_TOA(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 

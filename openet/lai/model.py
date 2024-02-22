@@ -75,15 +75,14 @@ def getLAIImage(image, sensor, nonveg):
     for biome in biomes:
         lai_img = lai_img.where(
             train_img.select('biome2').eq(biome),
-            getLAIforBiome(train_img, biome, getRFModel(sensor, biome)))
+            getLAIforBiome(train_img, biome, getRFModel(sensor, biome))
+        )
 
     # Set water LAI to zero
     # TODO: This should probably be in a separate function
     # TODO: Check what water_mask the other models are using (PTJPL?)
-    water_mask = train_img.select('NDVI').lt(0) \
-        .And(train_img.select('nir').lt(1000))
-    # water_mask = train_img.select('NDVI').lt(0) \
-    #     .And(train_img.select('NDWI').gt(0))
+    water_mask = train_img.select('NDVI').lt(0).And(train_img.select('nir').lt(1000))
+    # water_mask = train_img.select('NDVI').lt(0).And(train_img.select('NDWI').gt(0))
     lai_img = lai_img.where(water_mask, 0)
     qa = getLAIQA(train_img, sensor, lai_img)
 
@@ -129,51 +128,58 @@ def getLAIQA(landsat, sensor, lai):
 
     # Get pre-coded convex hull
     data_id = 'projects/openet/lai/training/LAI_train_convex_hull_by_sensor_v10_1'
-    hull_array = ee.FeatureCollection(data_id)\
-        .filterMetadata('sensor', 'equals', sensor)\
-        .sort('index')\
+    # data_id = 'projects/openet/assets/lai/training/LAI_train_convex_hull_by_sensor_v10_1'
+    hull_array = (
+        ee.FeatureCollection(data_id)
+        .filterMetadata('sensor', 'equals', sensor)
+        .sort('index')
         .aggregate_array('in_hull')
+    )
     hull_array_reshape = ee.Array(hull_array).reshape([10, 10, 10, 10])
 
     # Rescale landsat image
-    image_scaled = landsat.select(['red', 'green', 'nir', 'swir1'])\
-        .divide([red_max, green_max, nir_max, swir1_max])\
+    image_scaled = (
+        landsat.select(['red', 'green', 'nir', 'swir1'])
+        .divide([red_max, green_max, nir_max, swir1_max])
         .multiply(10).floor().toInt()
+    )
     # image_scaled = landsat.select('red').divide(red_max).multiply(10).floor().toInt() \
     #     .addBands(landsat.select('green').divide(green_max).multiply(10).floor().toInt()) \
     #     .addBands(landsat.select('nir').divide(nir_max).multiply(10).floor().toInt()) \
     #     .addBands(landsat.select('swir1').divide(swir1_max).multiply(10).floor().toInt())
 
     # Get an out-of-range mask
-    range_mask = landsat.select('red').gte(0) \
-        .And(landsat.select('red').lt(red_max)) \
-        .And(landsat.select('green').gte(0)) \
-        .And(landsat.select('green').lt(green_max)) \
-        .And(landsat.select('nir').gte(0)) \
-        .And(landsat.select('nir').lt(nir_max)) \
-        .And(landsat.select('swir1').gte(0)) \
+    range_mask = (
+        landsat.select('red').gte(0)
+        .And(landsat.select('red').lt(red_max))
+        .And(landsat.select('green').gte(0))
+        .And(landsat.select('green').lt(green_max))
+        .And(landsat.select('nir').gte(0))
+        .And(landsat.select('nir').lt(nir_max))
+        .And(landsat.select('swir1').gte(0))
         .And(landsat.select('swir1').lt(swir1_max))
+    )
 
     # Apply convel hull and get QA Band
-    hull_image = image_scaled.select('red') \
-        .multiply(0).add(ee.Image(hull_array_reshape)) \
+    hull_image = (
+        image_scaled.select('red').multiply(0).add(ee.Image(hull_array_reshape))
         .updateMask(range_mask)
+    )
 
     in_mask = hull_image.arrayGet(image_scaled.updateMask(range_mask))
 
-    in_mask = in_mask.unmask(0) \
-        .updateMask(landsat.select('red').mask()).Not().int()
+    in_mask = in_mask.unmask(0).updateMask(landsat.select('red').mask()).Not().int()
 
     # Check output range
-    out_mask = lai.gte(0).And(lai.lte(lai_max)) \
-        .updateMask(landsat.select('red').mask()).Not().int()
+    out_mask = (
+        lai.gte(0).And(lai.lte(lai_max)).updateMask(landsat.select('red').mask()).Not().int()
+    )
 
     # Indicate non-vegetation biome
     biome_mask = landsat.select('biome2').eq(0).int()
 
     # Combine
-    qa_band = in_mask.bitwiseOr(out_mask.leftShift(1)) \
-        .bitwiseOr(biome_mask.leftShift(2)).toByte()
+    qa_band = in_mask.bitwiseOr(out_mask.leftShift(1)).bitwiseOr(biome_mask.leftShift(2)).toByte()
 
     return qa_band.rename('QA')
 
@@ -190,31 +196,26 @@ def getRFModel(sensor, biome):
 
     # CM - The "projects/earthengine-legacy/assets/" probably isn't needed
     training_coll_id = 'projects/earthengine-legacy/assets/' \
-                       'projects/openet/lai/training/' \
-                       'LAI_train_sample_unsat_v10_1_final'
-    training_coll = ee.FeatureCollection(training_coll_id) \
-        .filterMetadata('sensor', 'equals', sensor)
-
-    # DEADBEEF
-    # training_coll_id = 'users/yanghui/OpenET/LAI_US/train_samples/' \
-    #                    'LAI_train_samples_' + sensor + '_v10_1_labeled'
-    # training_coll = ee.FeatureCollection(training_coll_id) \
-    #     .filterMetadata('sat_flag', 'equals', 'correct')
+                       'projects/openet/lai/training/LAI_train_sample_unsat_v10_1_final'
+    # training_coll_id = 'projects/openet/assets/lai/training/LAI_train_sample_unsat_v10_1_final'
+    training_coll = (
+        ee.FeatureCollection(training_coll_id).filterMetadata('sensor', 'equals', sensor)
+    )
 
     # Get train sample by biome
     if biome > 0:
         training_coll = training_coll.filterMetadata('biome2', 'equals', biome)
 
-    inputProperties = ['red', 'green', 'nir', 'swir1', 'lat', 'lon',
-                       'NDVI', 'NDWI', 'sun_zenith', 'sun_azimuth']
+    inputProperties = [
+        'red', 'green', 'nir', 'swir1', 'lat', 'lon', 'NDVI', 'NDWI', 'sun_zenith', 'sun_azimuth'
+    ]
 
-    return ee.Classifier.smileRandomForest(numberOfTrees=100,
-                                           minLeafPopulation=50,
-                                           variablesPerSplit=5) \
-                        .setOutputMode('REGRESSION') \
-                        .train(features=training_coll,
-                               classProperty='MCD_LAI',
-                               inputProperties=inputProperties)
+    return (
+        ee.Classifier.smileRandomForest(
+            numberOfTrees=100, minLeafPopulation=50, variablesPerSplit=5)
+        .setOutputMode('REGRESSION')
+        .train(features=training_coll, classProperty='MCD_LAI', inputProperties=inputProperties)
+    )
 
 
 def getLAIforBiome(train_img, biome, rf_model):
@@ -232,10 +233,11 @@ def getLAIforBiome(train_img, biome, rf_model):
     ee.Image
 
     """
-    biom_lai = train_img\
-        .updateMask(train_img.select('biome2').eq(ee.Number(biome))) \
+    return (
+        train_img
+        .updateMask(train_img.select('biome2').eq(ee.Number(biome)))
         .classify(rf_model, 'LAI')
-    return biom_lai
+    )
 
 
 def getTrainImg(image):
@@ -252,8 +254,7 @@ def getTrainImg(image):
     """
     nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2019_REL/NLCD')
     nlcd_year_max = 2019
-    # nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2016_REL')
-    # nlcd_year_max = 2016
+
     # TODO: Compute last available year in NLCD collection
     # nlcd_year_max = ee.Date(
     #         nlcd_coll.limit(1, 'system:time_start', False).first().get('system:time_start'))
@@ -273,12 +274,12 @@ def getTrainImg(image):
     nlcd_year_dict = ee.Dictionary({
         src_year: tgt_year
         for tgt_year, src_years in nlcd_year_dict.items()
-        for src_year in src_years})
+        for src_year in src_years
+    })
 
     # Map later years to last available year in NLCD dataset
     #   For now, don't remap earlier years and set first available year to 1999
-    nlcd_year = ee.Date(image.get('system:time_start')).get('year')\
-        .min(nlcd_year_max)
+    nlcd_year = ee.Date(image.get('system:time_start')).get('year').min(nlcd_year_max)
     nlcd_year = nlcd_year_dict.get(nlcd_year.format('%d'))
     nlcd_img = nlcd_coll.filterMetadata('system:index', 'equals', nlcd_year)\
         .first().select(['landcover'])
@@ -288,14 +289,14 @@ def getTrainImg(image):
     image = image.set({'nlcd_year': nlcd_year})
 
     # Add the vegetation indices as additional bands
-    image = getVIs(image)
+    image = add_vi_bands(image)
 
     # Map NLCD codes to biomes
     nlcd_biom_remap = {
         11: 0, 12: 0, 21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
         41: 1, 42: 2, 43: 3, 52: 4, 71: 5, 81: 5, 82: 6, 90: 7, 95: 8,
     }
-    biom_img = nlcd_img.remap(*zip(*nlcd_biom_remap.items()) )
+    biom_img = nlcd_img.remap(*zip(*nlcd_biom_remap.items()))
 
     # Add other bands
 
@@ -305,29 +306,29 @@ def getTrainImg(image):
         mask_img.add(biom_img).rename('biome2'),
         mask_img.add(ee.Image.pixelLonLat().select(['longitude'])).rename(['lon']),
         mask_img.add(ee.Image.pixelLonLat().select(['latitude'])).rename(['lat']),
-        mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
-            .rename(['sun_zenith']),
-        mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
-            .rename(['sun_azimuth']),
+        mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE'))).rename(['sun_zenith']),
+        mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE'))).rename(['sun_azimuth']),
         mask_img.add(1)
     ])
 
     # # Test adding all bands directly and the calling updateMask to clip
     # mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
-    # image = image.addBands(biom_img.rename('biome2')) \
-    #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon'])) \
-    #     .addBands(ee.Image.pixelLonLat().select(['latitude']).rename(['lat'])) \
+    # image = (
+    #     image.addBands(biom_img.rename('biome2'))
+    #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon']))
+    #     .addBands(ee.Image.pixelLonLat().select(['latitude']).rename(['lat']))
     #     .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_ZENITH_ANGLE')))
-    #               .rename(['sun_zenith'])) \
+    #               .rename(['sun_zenith']))
     #     .addBands(ee.Image.constant(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE')))
-    #               .rename(['sun_azimuth'])) \
-    #     .addBands(mask_img.add(1)) \
+    #               .rename(['sun_azimuth']))
+    #     .addBands(mask_img.add(1))
     #     .updateMask(mask_img.add(1))
+    # )
 
     return image
 
 
-def getVIs(image):
+def add_vi_bands(image):
     """Compute VIs for an Landsat image
 
     Parameters
@@ -339,10 +340,7 @@ def getVIs(image):
     ee.Image
 
     """
-    ndvi_img = image.expression(
-        'float((b("nir") - b("red"))) / (b("nir") + b("red"))')
-    ndwi_img = image.expression(
-        'float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
+    ndvi_img = image.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
+    ndwi_img = image.expression('float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
 
-    return image.addBands(ndvi_img.select([0], ['NDVI'])) \
-                .addBands(ndwi_img.select([0], ['NDWI']))
+    return image.addBands([ndvi_img.rename('NDVI'), ndwi_img.rename('NDWI')])

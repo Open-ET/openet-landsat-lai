@@ -62,17 +62,18 @@ class Landsat_C02_SR(Model):
         # The reflectance values are intentionally being scaled by 10000 to
         #   match the Collection 1 SR scaling.
         # The elevation angle is being converted to a zenith angle
-        input_image = raw_image \
-            .select(input_bands.get(spacecraft_id), output_bands)\
-            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275, 1])\
-            .add([-0.2, -0.2, -0.2, -0.2, 1])\
-            .divide([0.0001, 0.0001, 0.0001, 0.0001, 1])\
+        input_image = (
+            raw_image
+            .select(input_bands.get(spacecraft_id), output_bands)
+            .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275, 1])
+            .add([-0.2, -0.2, -0.2, -0.2, 1])
+            .divide([0.0001, 0.0001, 0.0001, 0.0001, 1])
             .set({'system:time_start': raw_image.get('system:time_start'),
                   'system:index': raw_image.get('system:index'),
-                  'SOLAR_ZENITH_ANGLE':
-                        ee.Number(raw_image.get('SUN_ELEVATION')).multiply(-1).add(90),
+                  'SOLAR_ZENITH_ANGLE': ee.Number(raw_image.get('SUN_ELEVATION')).multiply(-1).add(90),
                   'SOLAR_AZIMUTH_ANGLE': raw_image.get('SUN_AZIMUTH'),
-                  })
+            })
+        )
 
         # CGM - super could be called without the init if we set input_image and
         #   spacecraft_id as properties of self

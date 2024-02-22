@@ -28,29 +28,29 @@ def test_ee_init():
         'LANDSAT/LC09/C02/T1_L2/LC09_044033_20220127',
     ]
 )
-def test_Landsat_C02_SR_band_names(image_id):
-    output = openet.lai.Landsat_C02_SR(image_id).image.bandNames().getInfo()
+def test_Landsat_C02_L2_band_names(image_id):
+    output = openet.lai.Landsat_C02_L2(image_id).image.bandNames().getInfo()
     assert set(output) == set(DEFAULT_BANDS)
 
 
-def test_Landsat_C02_SR_image_properties():
+def test_Landsat_C02_L2_image_properties():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
-    output = openet.lai.Landsat_C02_SR(image_id).image.getInfo()
+    output = openet.lai.Landsat_C02_L2(image_id).image.getInfo()
     assert output['properties']['system:time_start']
     assert abs(output['properties']['SOLAR_ZENITH_ANGLE'] - 25.7206) <= 0.0001
     assert abs(output['properties']['SOLAR_AZIMUTH_ANGLE'] - 127.0891) <= 0.0001
 
 
 # CGM - The C02 SR images are being scaled to match the C01 SR
-def test_Landsat_C02_SR_scaling():
+def test_Landsat_C02_L2_scaling():
     image_id = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
-    output = utils.point_image_value(openet.lai.Landsat_C02_SR(image_id).image, xy=TEST_POINT)
+    output = utils.point_image_value(openet.lai.Landsat_C02_L2(image_id).image, xy=TEST_POINT)
     assert output['nir'] > 1000
 
 
 # CGM - sensor is not currently being set as a class property
-# def test_Landsat_C02_SR_sensor():
-#     sensor = openet.lai.Landsat_C02_SR(TEST_IMAGE_ID).sensor
+# def test_Landsat_C02_L2_sensor():
+#     sensor = openet.lai.Landsat_C02_L2(TEST_IMAGE_ID).sensor
 #     assert sensor == TEST_IMAGE_ID.split('/')[1]
 
 

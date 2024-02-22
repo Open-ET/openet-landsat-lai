@@ -17,7 +17,7 @@ class Landsat(object):
         if type(image_id) is not str:
             raise ValueError('unsupported input type')
         elif re.match('LANDSAT/L[TEC]0[45789]/C02/T1_L2', image_id):
-            return Landsat_C02_SR(image_id)
+            return Landsat_C02_L2(image_id)
         elif re.match('LANDSAT/L[TEC]0[4578]/C01/T1_SR', image_id):
             return Landsat_C01_SR(image_id)
         elif re.match('LANDSAT/L[TEC]0[4578]/C01/T1_TOA', image_id):
@@ -26,7 +26,7 @@ class Landsat(object):
             raise ValueError('unsupported image_id')
 
 
-class Landsat_C02_SR(Model):
+class Landsat_C02_L2(Model):
     def __init__(self, image_id):
         """"""
         # TODO: Support input being an ee.Image

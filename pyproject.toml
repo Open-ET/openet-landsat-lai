@@ -1,0 +1,41 @@
+[project]
+name = "openet-landsat-lai"
+version = "0.2.0"
+authors = [
+    { name = "Yanghui Kang", email = "ykang38@wisc.edu" },
+    { name = "Yun Yang", email = "yun.yang@msstate.edu" },
+]
+ maintainers = [
+    { name = "Charles Morton", email = "charles.morton@dri.edu" },
+ ]
+description = "Earth Engine based Landsat LAI functions"
+readme = "README.md"
+requires-python = ">=3.7"
+keywords = ["LAI", "Landsat", "OpenET", "Earth Engine", "evapotranspiration"]
+license = {text = "Apache-2.0"}
+classifiers = [
+    "Programming Language :: Python :: 3",
+    "License :: OSI Approved :: Apache Software License",
+    "Operating System :: OS Independent",
+]
+dependencies = [
+    "earthengine-api>=0.1.367",
+]
+
+[project.urls]
+"Homepage" = "https://github.com/Open-ET/openet-landsat-lai"
+# "Repository" = "https://github.com/Open-ET/openet-landsat-lai.git"
+# "Documentation" = "https://github.com/Open-ET/openet-landsat-lai"
+# "Bug Tracker" = "https://github.com/Open-ET/openet-landsat-lai"
+# "Changelog" = "https://github.com/Open-ET/openet-landsat-lai"
+
+[build-system]
+requires = ["setuptools>=61.0"]
+build-backend = "setuptools.build_meta"
+
+[project.optional-dependencies]
+test = ["pytest"]
+
+[tool.setuptools.packages.find]
+include = ["openet*"]
+exclude = ["examples*", "scripts*"]

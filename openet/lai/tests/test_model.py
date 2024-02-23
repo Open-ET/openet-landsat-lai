@@ -101,9 +101,9 @@ def test_get_train_img_bandnames():
         ['2018-01-01', '2019'],
         ['2019-01-01', '2019'],
         ['2020-01-01', '2019'],
-        ['2021-01-01', '2019'],
-        ['2022-01-01', '2019'],
-        ['2023-01-01', '2019'],
+        ['2021-01-01', '2021'],
+        ['2022-01-01', '2021'],
+        ['2023-01-01', '2021'],
         # # What should happen for years outside the supported range
         # # Currently this will raise a EEException
         # # (about the dictionary not having the correct key)

@@ -260,37 +260,42 @@ def get_train_img(image):
     ee.Image
 
     """
-    nlcd_coll = ee.ImageCollection(f'USGS/NLCD_RELEASES/2019_REL/NLCD')
-    nlcd_year_max = 2019
-
-    # TODO: Compute last available year in NLCD collection
-    # nlcd_year_max = ee.Date(
-    #         nlcd_coll.limit(1, 'system:time_start', False).first().get('system:time_start'))
-    #     .get('year')
-
-    # Get NLCD year for the image year
-    nlcd_year_dict = {
-        '2001': ['1999', '2000', '2001', '2002'],
-        '2004': ['2003', '2004', '2005'],
-        '2006': ['2006', '2007'],
-        '2008': ['2008', '2009'],
-        '2011': ['2010', '2011', '2012'],
-        '2013': ['2013', '2014'],
-        '2016': ['2015', '2016', '2017'],
-        '2019': ['2018', '2019', '2020'],
-    }
-    nlcd_year_dict = ee.Dictionary({
-        src_year: tgt_year
-        for tgt_year, src_years in nlcd_year_dict.items()
-        for src_year in src_years
+    nlcd_img_dict = ee.Dictionary({
+        '2021': ee.Image('USGS/NLCD_RELEASES/2021_REL/NLCD/2021'),
+        '2020': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
+        '2019': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
+        '2018': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
+        '2017': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
+        '2016': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
+        '2015': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
+        '2014': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2013'),
+        '2013': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2013'),
+        '2012': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
+        '2011': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
+        '2010': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
+        '2009': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2008'),
+        '2008': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2008'),
+        '2007': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2006'),
+        '2006': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2006'),
+        '2005': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
+        '2004': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
+        '2003': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
+        '2002': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2001'),
+        '2001': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2001'),
     })
 
-    # Map later years to last available year in NLCD dataset
-    #   For now, don't remap earlier years and set first available year to 1999
-    nlcd_year = ee.Date(image.get('system:time_start')).get('year').min(nlcd_year_max)
-    nlcd_year = nlcd_year_dict.get(nlcd_year.format('%d'))
-    nlcd_img = nlcd_coll.filterMetadata('system:index', 'equals', nlcd_year)\
-        .first().select(['landcover'])
+    # Hardcode min/max for now, but they could be computed from the dictionary
+    nlcd_year_min = 2001
+    nlcd_year_max = 2021
+    # nlcd_year_min = ee.List(nlcd_img_dict.keys()).reduce(ee.Reducer.min())
+    # nlcd_year_max = ee.List(nlcd_img_dict.keys()).reduce(ee.Reducer.max())
+    image_year = (
+        ee.Number(ee.Date(image.get('system:time_start')).get('year'))
+        .max(nlcd_year_min).min(nlcd_year_max).format('%d')
+    )
+
+    nlcd_img = ee.Image(nlcd_img_dict.get(image_year)).select(['landcover'])
+    nlcd_year = nlcd_img.get('system:index')
 
     # CM - Add the NLCD year as a property to track which year was used
     #   This probably isn't needed long term but it is useful for testing
@@ -302,7 +307,14 @@ def get_train_img(image):
     # Map NLCD codes to biomes
     nlcd_biom_remap = {
         11: 0, 12: 0, 21: 0, 22: 0, 23: 0, 24: 0, 31: 0,
-        41: 1, 42: 2, 43: 3, 52: 4, 71: 5, 81: 5, 82: 6, 90: 7, 95: 8,
+        41: 1,
+        42: 2,
+        43: 3,
+        52: 4,
+        71: 5, 81: 5,
+        82: 6,
+        90: 7,
+        95: 8,
     }
     biom_img = nlcd_img.remap(*zip(*nlcd_biom_remap.items()))
 

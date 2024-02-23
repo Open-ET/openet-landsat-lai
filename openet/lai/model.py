@@ -10,10 +10,9 @@ class Model:
         image : ee.Image
             Prepped input image.  Must have the following bands and properties.
             Reflectance values must be scaled from 0-10000, not 0-1.
-            Bands: 'green', 'red', 'nir', 'swir1', 'pixel_qa'
-            Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE',
-                        'SOLAR_AZIMUTH_ANGLE'
-            Note, the 'pixel_qa' band is only used to set the nodata mask.
+            Bands: 'green', 'red', 'nir', 'swir1', 'qa'
+            Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE', 'SOLAR_AZIMUTH_ANGLE'
+            Note, the 'qa' band is only used to set the nodata mask.
         sensor : {'LT05', 'LE07', 'LC08', 'LC09'}
             Note, LC09 will currently use the LC08 training collections.
 
@@ -36,22 +35,21 @@ class Model:
             self.sensor = 'LC08'
 
     def lai(self, nonveg=True):
-        """Wrapper to the getLAIImage function"""
-        return getLAIImage(self.image, self.sensor, nonveg)
+        """Wrapper to the get_lai_image function"""
+        return get_lai_image(self.image, self.sensor, nonveg)
 
 
 # TODO: Move into Model class
-def getLAIImage(image, sensor, nonveg):
+def get_lai_image(image, sensor, nonveg):
     """Main Algorithm to compute LAI for a Landsat image
 
     Parameters
     ----------
     image : ee.Image
         Prepped input image.  Must have the following bands and properties.
-        Bands: 'green', 'red', 'nir', 'swir1', 'pixel_qa'
-        Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE',
-                    'SOLAR_AZIMUTH_ANGLE'
-        Note, the 'pixel_qa' band is only used to set the nodata mask.
+        Bands: 'green', 'red', 'nir', 'swir1', 'qa'
+        Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE', 'SOLAR_AZIMUTH_ANGLE'
+        Note, the 'qa' band is only used to set the nodata mask.
     sensor : {'LT05', 'LE07', 'LC08'}
     nonveg : bool
         True if want to compute LAI for non-vegetation pixels
@@ -61,7 +59,7 @@ def getLAIImage(image, sensor, nonveg):
     ee.Image
 
     """
-    train_img = getTrainImg(image)
+    train_img = get_train_img(image)
 
     # Start with an image of all zeros
     lai_img = train_img.select(['mask'], ['LAI']).multiply(0).double()
@@ -75,25 +73,36 @@ def getLAIImage(image, sensor, nonveg):
     for biome in biomes:
         lai_img = lai_img.where(
             train_img.select('biome2').eq(biome),
-            getLAIforBiome(train_img, biome, getRFModel(sensor, biome))
+            get_lai_for_biome(train_img, biome, get_rf_model(sensor, biome))
         )
 
     # Set water LAI to zero
+    # Note, the reflectance values are scaled 0-10000, not 0-1
     # TODO: This should probably be in a separate function
-    # TODO: Check what water_mask the other models are using (PTJPL?)
-    water_mask = train_img.select('NDVI').lt(0).And(train_img.select('nir').lt(1000))
-    # water_mask = train_img.select('NDVI').lt(0).And(train_img.select('NDWI').gt(0))
+    # TODO: Check what water_mask the other models are using
+    water_mask = (
+        train_img.select('NDVI').lt(0)
+        # .And(train_img.select('NDWI').gt(0)
+        .And(train_img.select('nir').lt(1000))
+    )
+
+    # CGM - Should we mask out water pixels instead of setting them to zero?
     lai_img = lai_img.where(water_mask, 0)
-    qa = getLAIQA(train_img, sensor, lai_img)
+    # lai_img = lai_img.updateMask(water_mask.eq(0))
 
-    lai_img = lai_img.addBands(qa.byte())
+    # Add QA band
+    qa_img = get_lai_qa(train_img, sensor, lai_img)
+    lai_img = lai_img.addBands(qa_img.byte())
 
-    # CGM - copyProperties sometimes drops the type
-    return ee.Image(lai_img.copyProperties(image)) \
-        .set('system:time_start', image.get('system:time_start'))
+    return lai_img.set({
+        'system:index': image.get('system:index'),
+        'system:time_start': image.get('system:time_start'),
+        # 'SOLAR_AZIMUTH_ANGLE': image.get('SOLAR_AZIMUTH_ANGLE'),
+        # 'SOLAR_ZENITH_ANGLE': image.get('SOLAR_ZENITH_ANGLE'),
+    })
 
 
-def getLAIQA(landsat, sensor, lai):
+def get_lai_qa(landsat, sensor, lai):
     """
 
     Parameters
@@ -160,7 +169,7 @@ def getLAIQA(landsat, sensor, lai):
         .And(landsat.select('swir1').lt(swir1_max))
     )
 
-    # Apply convel hull and get QA Band
+    # Apply convex hull and get QA Band
     hull_image = (
         image_scaled.select('red').multiply(0).add(ee.Image(hull_array_reshape))
         .updateMask(range_mask)
@@ -184,7 +193,7 @@ def getLAIQA(landsat, sensor, lai):
     return qa_band.rename('QA')
 
 
-def getRFModel(sensor, biome):
+def get_rf_model(sensor, biome):
     """Wrapper function to train RF model given biome and sensor
 
     Parameters
@@ -194,10 +203,9 @@ def getRFModel(sensor, biome):
 
     """
 
-    # CM - The "projects/earthengine-legacy/assets/" probably isn't needed
-    training_coll_id = 'projects/earthengine-legacy/assets/' \
-                       'projects/openet/lai/training/LAI_train_sample_unsat_v10_1_final'
-    # training_coll_id = 'projects/openet/assets/lai/training/LAI_train_sample_unsat_v10_1_final'
+    training_coll_id = 'projects/openet/assets/lai/training/LAI_train_sample_unsat_v10_1_final'
+    # training_coll_id = 'projects/earthengine-legacy/assets/' \
+    #                    'projects/openet/lai/training/LAI_train_sample_unsat_v10_1_final'
     training_coll = (
         ee.FeatureCollection(training_coll_id).filterMetadata('sensor', 'equals', sensor)
     )
@@ -218,7 +226,7 @@ def getRFModel(sensor, biome):
     )
 
 
-def getLAIforBiome(train_img, biome, rf_model):
+def get_lai_for_biome(train_img, biome, rf_model):
     """Compute LAI for an input Landsat image and Random Forest models
 
     Parameters
@@ -240,7 +248,7 @@ def getLAIforBiome(train_img, biome, rf_model):
     )
 
 
-def getTrainImg(image):
+def get_train_img(image):
     """Function that takes a Landsat image and prepare feature bands
 
     Parameters
@@ -301,18 +309,18 @@ def getTrainImg(image):
     # Add other bands
 
     # Map all bands to mask image to avoid clip or updateMask calls
-    mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
+    mask_img = image.select(['qa'], ['mask']).multiply(0)
     image = image.addBands([
         mask_img.add(biom_img).rename('biome2'),
         mask_img.add(ee.Image.pixelLonLat().select(['longitude'])).rename(['lon']),
         mask_img.add(ee.Image.pixelLonLat().select(['latitude'])).rename(['lat']),
         mask_img.float().add(ee.Number(image.get('SOLAR_ZENITH_ANGLE'))).rename(['sun_zenith']),
         mask_img.float().add(ee.Number(image.get('SOLAR_AZIMUTH_ANGLE'))).rename(['sun_azimuth']),
-        mask_img.add(1)
+        mask_img.add(1),
     ])
 
     # # Test adding all bands directly and the calling updateMask to clip
-    # mask_img = image.select(['pixel_qa'], ['mask']).multiply(0)
+    # mask_img = image.select(['qa'], ['mask']).multiply(0)
     # image = (
     #     image.addBands(biom_img.rename('biome2'))
     #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon']))

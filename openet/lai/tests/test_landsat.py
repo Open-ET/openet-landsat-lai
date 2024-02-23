@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 TEST_IMAGE_ID = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
 TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
-DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
+DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa']
 
 
 def test_ee_init():
@@ -19,7 +19,7 @@ def test_ee_init():
 
 
 def test_Landsat_C02_L2_band_names():
-    output = openet.lai.Landsat_C02_L2(TEST_IMAGE_ID).image.bandNames().getInfo()
+    output = utils.get_info(openet.lai.Landsat_C02_L2(TEST_IMAGE_ID).image.bandNames())
     assert set(output) == set(DEFAULT_BANDS)
 
 
@@ -37,12 +37,12 @@ def test_Landsat_C02_L2_band_names():
     ]
 )
 def test_Landsat_C02_L2_image_id_formats(image_id):
-    output = openet.lai.Landsat_C02_L2(image_id).image.bandNames().getInfo()
+    output = utils.get_info(openet.lai.Landsat_C02_L2(image_id).image.bandNames())
     assert set(output) == set(DEFAULT_BANDS)
 
 
 def test_Landsat_C02_L2_image_properties():
-    output = openet.lai.Landsat_C02_L2(TEST_IMAGE_ID).image.getInfo()
+    output = utils.get_info(openet.lai.Landsat_C02_L2(TEST_IMAGE_ID).image)
     assert output['properties']['system:time_start']
     assert abs(output['properties']['SOLAR_ZENITH_ANGLE'] - 25.7206) <= 0.0001
     assert abs(output['properties']['SOLAR_AZIMUTH_ANGLE'] - 127.0891) <= 0.0001
@@ -71,7 +71,7 @@ def test_Landsat_C02_L2_scaling():
     ]
 )
 def test_Landsat_image_id_formats(image_id):
-    output = openet.lai.Landsat(image_id).image.bandNames().getInfo()
+    output = utils.get_info(openet.lai.Landsat(image_id).image.bandNames())
     assert set(output) == set(DEFAULT_BANDS)
 
 

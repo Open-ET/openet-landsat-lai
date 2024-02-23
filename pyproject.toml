@@ -5,9 +5,9 @@ authors = [
     { name = "Yanghui Kang", email = "ykang38@wisc.edu" },
     { name = "Yun Yang", email = "yun.yang@msstate.edu" },
 ]
- maintainers = [
+maintainers = [
     { name = "Charles Morton", email = "charles.morton@dri.edu" },
- ]
+]
 description = "Earth Engine based Landsat LAI functions"
 readme = "README.md"
 requires-python = ">=3.7"

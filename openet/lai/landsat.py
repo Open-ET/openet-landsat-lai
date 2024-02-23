@@ -28,14 +28,15 @@ class Landsat(object):
 class Landsat_C02_L2(Model):
     def __init__(self, image_id):
         """"""
-        # TODO: Support input being an ee.Image
+        # TODO: Support input being an ee.String (or ee.Image)
         # For now assume input is always an image ID
         if type(image_id) is not str:
             raise ValueError('unsupported input type')
 
         # Match either the full image ID or just the scene ID
         image_id_match = re.match(
-            '(?P<COLL_ID>LANDSAT/L[TEC]0[45789]/C02/T1_L2/)?(?P<SENSOR>L[TEC]0[45789])_\\d{6}_\\d{8}',
+            '(?P<COLL_ID>LANDSAT/L[TEC]0[45789]/C02/T1_L2/)?'
+            '(?P<SENSOR>L[TEC]0[45789])_\\d{6}_\\d{8}',
             image_id, re.IGNORECASE
         )
         if not image_id_match:
@@ -58,7 +59,7 @@ class Landsat_C02_L2(Model):
             'LANDSAT_8': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
             'LANDSAT_9': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
         })
-        output_bands = ['green', 'red', 'nir', 'swir1', 'pixel_qa']
+        output_bands = ['green', 'red', 'nir', 'swir1', 'qa']
 
         # # Cloud mask function must be passed with raw/unnamed image
         # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(
@@ -73,10 +74,12 @@ class Landsat_C02_L2(Model):
             .multiply([0.0000275, 0.0000275, 0.0000275, 0.0000275, 1])
             .add([-0.2, -0.2, -0.2, -0.2, 1])
             .divide([0.0001, 0.0001, 0.0001, 0.0001, 1])
-            .set({'system:time_start': raw_image.get('system:time_start'),
-                  'system:index': raw_image.get('system:index'),
-                  'SOLAR_ZENITH_ANGLE': ee.Number(raw_image.get('SUN_ELEVATION')).multiply(-1).add(90),
-                  'SOLAR_AZIMUTH_ANGLE': raw_image.get('SUN_AZIMUTH'),
+            .set({
+                'system:time_start': raw_image.get('system:time_start'),
+                'system:index': raw_image.get('system:index'),
+                'SOLAR_AZIMUTH_ANGLE': ee.Number(raw_image.get('SUN_AZIMUTH')),
+                'SOLAR_ZENITH_ANGLE': ee.Number(raw_image.get('SUN_ELEVATION'))
+                    .multiply(-1).add(90),
             })
         )
 

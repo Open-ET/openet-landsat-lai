@@ -11,7 +11,7 @@ maintainers = [
 description = "Earth Engine based Landsat LAI functions"
 readme = "README.md"
 requires-python = ">=3.8"
-keywords = ["LAI", "Landsat", "OpenET", "Earth Engine", "Evapotranspiration"]
+keywords = ["LAI", "OpenET", "Earth Engine", "Evapotranspiration", "Landsat"]
 license = {text = "Apache-2.0"}
 classifiers = [
     "Programming Language :: Python :: 3",

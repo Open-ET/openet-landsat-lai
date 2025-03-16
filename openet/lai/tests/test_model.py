@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 TEST_IMAGE_ID = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
 TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
-DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa']
+DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa_pixel']
 DEFAULT_VALUES = [0.1, 0.1, 0.3, 0.1, 1]
 
 
@@ -89,26 +89,14 @@ def test_get_train_img_bandnames():
     "date, nlcd_band",
     [
         # CM - We don't really need to test all of these
-        ['2003-01-01', '2004'],
-        ['2007-01-01', '2006'],
-        ['2008-01-01', '2008'],
-        ['2012-01-01', '2011'],
+        ['1985-01-01', '1985'],
+        ['2000-01-01', '2000'],
+        ['2020-01-01', '2020'],
+        ['2023-01-01', '2023'],
         # Check if the transition at the new year is handled
-        ['2014-12-31', '2013'],
-        ['2015-01-01', '2016'],
-        # Check the supported start/end years
-        ['2017-01-01', '2016'],
-        ['2018-01-01', '2019'],
-        ['2019-01-01', '2019'],
-        ['2020-01-01', '2019'],
-        ['2021-01-01', '2021'],
-        ['2022-01-01', '2021'],
-        ['2023-01-01', '2021'],
+        ['2014-12-31', '2014'],
         # # What should happen for years outside the supported range
-        # # Currently this will raise a EEException
-        # # (about the dictionary not having the correct key)
-        pytest.param('1998-01-01', '2001', marks=pytest.mark.xfail),
-        # pytest.param('2023-01-01', '2019', marks=pytest.mark.xfail),
+        ['1980-01-01', '1985'],
     ]
 )
 def test_get_train_img_nlcd_year(date, nlcd_band):

@@ -269,7 +269,7 @@ def get_train_img(image):
     nlcd_date = ee.Date.fromYMD(nlcd_year, 1, 1)
     nlcd_img = nlcd_coll.filterDate(nlcd_date, nlcd_date.advance(1, 'year')).first()
 
-    image = image.set({'nlcd_year': nlcd_year})
+    image = image.set({'nlcd_year': nlcd_year.format('%d')})
 
     # Add the vegetation indices as additional bands
     image = add_vi_bands(image)

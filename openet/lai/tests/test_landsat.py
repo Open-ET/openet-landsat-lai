@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 TEST_IMAGE_ID = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
 TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
-DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa']
+DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa_pixel']
 
 
 def test_ee_init():

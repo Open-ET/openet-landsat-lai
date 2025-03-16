@@ -10,9 +10,9 @@ class Model:
         image : ee.Image
             Prepped input image.  Must have the following bands and properties.
             Reflectance values must be scaled from 0-10000, not 0-1.
-            Bands: 'green', 'red', 'nir', 'swir1', 'qa'
+            Bands: 'green', 'red', 'nir', 'swir1', 'qa_pixel'
             Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE', 'SOLAR_AZIMUTH_ANGLE'
-            Note, the 'qa' band is only used to set the nodata mask.
+            Note, the 'qa_pixel' band is only used to set the nodata mask.
         sensor : {'LT05', 'LE07', 'LC08', 'LC09'}
             Note, LC09 will currently use the LC08 training collections.
 
@@ -47,9 +47,9 @@ def get_lai_image(image, sensor, nonveg):
     ----------
     image : ee.Image
         Prepped input image.  Must have the following bands and properties.
-        Bands: 'green', 'red', 'nir', 'swir1', 'qa'
+        Bands: 'green', 'red', 'nir', 'swir1', 'qa_pixel'
         Properties: 'system:time_start', 'SOLAR_ZENITH_ANGLE', 'SOLAR_AZIMUTH_ANGLE'
-        Note, the 'qa' band is only used to set the nodata mask.
+        Note, the 'qa_pixel' band is only used to set the nodata mask.
     sensor : {'LT05', 'LE07', 'LC08'}
     nonveg : bool
         True if want to compute LAI for non-vegetation pixels
@@ -260,45 +260,15 @@ def get_train_img(image):
     ee.Image
 
     """
-    nlcd_img_dict = ee.Dictionary({
-        '2021': ee.Image('USGS/NLCD_RELEASES/2021_REL/NLCD/2021'),
-        '2020': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
-        '2019': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
-        '2018': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2019'),
-        '2017': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
-        '2016': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
-        '2015': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2016'),
-        '2014': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2013'),
-        '2013': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2013'),
-        '2012': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
-        '2011': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
-        '2010': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2011'),
-        '2009': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2008'),
-        '2008': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2008'),
-        '2007': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2006'),
-        '2006': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2006'),
-        '2005': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
-        '2004': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
-        '2003': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2004'),
-        '2002': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2001'),
-        '2001': ee.Image('USGS/NLCD_RELEASES/2019_REL/NLCD/2001'),
-    })
-
-    # Hardcode min/max for now, but they could be computed from the dictionary
-    nlcd_year_min = 2001
-    nlcd_year_max = 2021
-    # nlcd_year_min = ee.List(nlcd_img_dict.keys()).reduce(ee.Reducer.min())
-    # nlcd_year_max = ee.List(nlcd_img_dict.keys()).reduce(ee.Reducer.max())
-    image_year = (
+    nlcd_coll = ee.ImageCollection('projects/sat-io/open-datasets/USGS/ANNUAL_NLCD/LANDCOVER')
+    nlcd_year = (
         ee.Number(ee.Date(image.get('system:time_start')).get('year'))
-        .max(nlcd_year_min).min(nlcd_year_max).format('%d')
+        .max(ee.Date(nlcd_coll.aggregate_min('system:time_start')).get('year'))
+        .min(ee.Date(nlcd_coll.aggregate_max('system:time_start')).get('year'))
     )
+    nlcd_date = ee.Date.fromYMD(nlcd_year, 1, 1)
+    nlcd_img = nlcd_coll.filterDate(nlcd_date, nlcd_date.advance(1, 'year')).first()
 
-    nlcd_img = ee.Image(nlcd_img_dict.get(image_year)).select(['landcover'])
-    nlcd_year = nlcd_img.get('system:index')
-
-    # CM - Add the NLCD year as a property to track which year was used
-    #   This probably isn't needed long term but it is useful for testing
     image = image.set({'nlcd_year': nlcd_year})
 
     # Add the vegetation indices as additional bands
@@ -321,7 +291,7 @@ def get_train_img(image):
     # Add other bands
 
     # Map all bands to mask image to avoid clip or updateMask calls
-    mask_img = image.select(['qa'], ['mask']).multiply(0)
+    mask_img = image.select(['qa_pixel'], ['mask']).multiply(0)
     image = image.addBands([
         mask_img.add(biom_img).rename('biome2'),
         mask_img.add(ee.Image.pixelLonLat().select(['longitude'])).rename(['lon']),
@@ -332,7 +302,7 @@ def get_train_img(image):
     ])
 
     # # Test adding all bands directly and the calling updateMask to clip
-    # mask_img = image.select(['qa'], ['mask']).multiply(0)
+    # mask_img = image.select(['qa_pixel'], ['mask']).multiply(0)
     # image = (
     #     image.addBands(biom_img.rename('biome2'))
     #     .addBands(ee.Image.pixelLonLat().select(['longitude']).rename(['lon']))
@@ -349,7 +319,7 @@ def get_train_img(image):
 
 
 def add_vi_bands(image):
-    """Compute VIs for an Landsat image
+    """Compute VIs for a Landsat image
 
     Parameters
     ----------
@@ -360,7 +330,18 @@ def add_vi_bands(image):
     ee.Image
 
     """
+
+    # # This normalized difference function will set pixels with negative reflectance values to nodata
+    # #   so force all the values to 0 first
+    # ndvi_img = image.max(0).normalizedDifference(['nir', 'rid'])
+    # ndwi_img = image.max(0).normalizedDifference(['nir', 'swir1'])
+
     ndvi_img = image.expression('float((b("nir") - b("red"))) / (b("nir") + b("red"))')
     ndwi_img = image.expression('float((b("nir") - b("swir1"))) / (b("nir") + b("swir1"))')
 
     return image.addBands([ndvi_img.rename('NDVI'), ndwi_img.rename('NDWI')])
+
+
+# def water_mask(image):
+#     """"""
+#     return image

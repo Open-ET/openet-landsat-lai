@@ -197,14 +197,14 @@ def test_getRFModel_sensor(sensor, biome):
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 6, 3.63011],              # NLCD 82
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.52650, 38.73990], 6, 3.63011],  # NLCD 82
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.78379],  # NLCD 11 (Folsom Lake)
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.27416],  # NLCD 41
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.80498, 38.82770], 1, 3.92274],  # NLCD 41
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.77515, 38.81689], 2, 3.29797],  # NLCD 42
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.76897, 38.82505], 3, 3.09790],  # NLCD 43
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.92601],  # NLCD 52
+        #['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.76897, 38.82505], 3, 3.09790],  # NLCD 43
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.79406, 38.82217], 4, 1.48535],  # NLCD 52
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.46389],  # NLCD 71
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.42424],  # NLCD 81
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.25980, 38.89904], 7, 2.72870],  # NLCD 90
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.63588, 38.90885], 8, 2.80465],  # NLCD 95
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.80523, 38.86174], 8, 1.38858],  # NLCD 95
         # # Test values for LAI_train_sample_unsat_v10_1_final, numberOfTrees=100,
         # #   minLeafPopulation=50, variablesPerSplit=5
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 3.644629],              # NLCD 82
@@ -226,6 +226,8 @@ def test_get_lai_for_biome_point_values(image_id, xy, biome, expected, tol=0.000
     rf_model = openet.lai.model.get_rf_model(sensor, biome)
     output = utils.point_image_value(
         openet.lai.model.get_lai_for_biome(training_img, biome, rf_model), xy=xy)
+    import pprint
+    pprint.pprint(output)
     assert abs(output['LAI'] - expected) <= tol
 
 

@@ -226,8 +226,6 @@ def test_get_lai_for_biome_point_values(image_id, xy, biome, expected, tol=0.000
     rf_model = openet.lai.model.get_rf_model(sensor, biome)
     output = utils.point_image_value(
         openet.lai.model.get_lai_for_biome(training_img, biome, rf_model), xy=xy)
-    import pprint
-    pprint.pprint(output)
     assert abs(output['LAI'] - expected) <= tol
 
 

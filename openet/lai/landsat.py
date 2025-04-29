@@ -59,7 +59,7 @@ class Landsat_C02_L2(Model):
             'LANDSAT_8': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
             'LANDSAT_9': ['SR_B3', 'SR_B4', 'SR_B5', 'SR_B6', 'QA_PIXEL'],
         })
-        output_bands = ['green', 'red', 'nir', 'swir1', 'qa']
+        output_bands = ['green', 'red', 'nir', 'swir1', 'qa_pixel']
 
         # # Cloud mask function must be passed with raw/unnamed image
         # cloud_mask = openet.core.common.landsat_c2_sr_cloud_mask(

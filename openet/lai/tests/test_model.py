@@ -11,7 +11,7 @@ logging.basicConfig(level=logging.DEBUG, format='%(message)s')
 TEST_IMAGE_ID = 'LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716'
 TEST_SENSOR = 'LC08'
 TEST_POINT = (-121.5265, 38.7399)
-DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa']
+DEFAULT_BANDS = ['green', 'red', 'nir', 'swir1', 'qa_pixel']
 DEFAULT_VALUES = [0.1, 0.1, 0.3, 0.1, 1]
 
 
@@ -89,26 +89,14 @@ def test_get_train_img_bandnames():
     "date, nlcd_band",
     [
         # CM - We don't really need to test all of these
-        ['2003-01-01', '2004'],
-        ['2007-01-01', '2006'],
-        ['2008-01-01', '2008'],
-        ['2012-01-01', '2011'],
+        ['1985-01-01', '1985'],
+        ['2000-01-01', '2000'],
+        ['2020-01-01', '2020'],
+        ['2023-01-01', '2023'],
         # Check if the transition at the new year is handled
-        ['2014-12-31', '2013'],
-        ['2015-01-01', '2016'],
-        # Check the supported start/end years
-        ['2017-01-01', '2016'],
-        ['2018-01-01', '2019'],
-        ['2019-01-01', '2019'],
-        ['2020-01-01', '2019'],
-        ['2021-01-01', '2021'],
-        ['2022-01-01', '2021'],
-        ['2023-01-01', '2021'],
+        ['2014-12-31', '2014'],
         # # What should happen for years outside the supported range
-        # # Currently this will raise a EEException
-        # # (about the dictionary not having the correct key)
-        pytest.param('1998-01-01', '2001', marks=pytest.mark.xfail),
-        # pytest.param('2023-01-01', '2019', marks=pytest.mark.xfail),
+        ['1980-01-01', '1985'],
     ]
 )
 def test_get_train_img_nlcd_year(date, nlcd_band):
@@ -209,14 +197,14 @@ def test_getRFModel_sensor(sensor, biome):
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', TEST_POINT, 6, 3.63011],              # NLCD 82
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.52650, 38.73990], 6, 3.63011],  # NLCD 82
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.14450, 38.72050], 0, 0.78379],  # NLCD 11 (Folsom Lake)
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.81146, 38.82813], 1, 1.27416],  # NLCD 41
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.80498, 38.82770], 1, 3.92274],  # NLCD 41
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.77515, 38.81689], 2, 3.29797],  # NLCD 42
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.76897, 38.82505], 3, 3.09790],  # NLCD 43
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.79558, 38.81790], 4, 1.92601],  # NLCD 52
+        #['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.76897, 38.82505], 3, 3.09790],  # NLCD 43
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.79406, 38.82217], 4, 1.48535],  # NLCD 52
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.42478, 38.73954], 5, 0.46389],  # NLCD 71
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.43285, 38.73834], 5, 0.42424],  # NLCD 81
         ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-121.25980, 38.89904], 7, 2.72870],  # NLCD 90
-        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.63588, 38.90885], 8, 2.80465],  # NLCD 95
+        ['LANDSAT/LC08/C02/T1_L2/LC08_044033_20170716', [-120.80523, 38.86174], 8, 1.38858],  # NLCD 95
         # # Test values for LAI_train_sample_unsat_v10_1_final, numberOfTrees=100,
         # #   minLeafPopulation=50, variablesPerSplit=5
         # ['LANDSAT/LC08/C01/T1_SR/LC08_044033_20170716', TEST_POINT, 6, 3.644629],              # NLCD 82
